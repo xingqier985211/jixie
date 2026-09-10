@@ -1,5 +1,5 @@
 # jixie
-加入广工集协
+加入广工集协[26集成3班丁其炼.docx](https://github.com/user-attachments/files/32033456/26.3.docx)
 贪吃蛇代码
 <!DOCTYPE html>
 <html lang="zh-CN">
