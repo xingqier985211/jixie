@@ -1,0 +1,14 @@
+# 工作区内部文件（工具、临时产物）不提交
+_tools/
+.gitconfig
+.gitconfig.d/
+*.pdf.extracted.txt
+
+# 与本次考核无关的旧文件
+preview/
+build-ppt.cjs
+*.pptx
+
+# 系统文件
+.DS_Store
+Thumbs.db
