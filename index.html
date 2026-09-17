@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>丁其炼 · 个人主页 | 集成电路设计与集成系统</title>
+<meta name="description" content="丁其炼的个人主页：集成电路设计与集成系统专业，爱好羽毛球与音乐，附 2048 AI 小游戏作品。">
+<style>
+/* ============================ 主题变量 ============================ */
+:root{
+  --bg:#f5f7fb; --bg-soft:#ffffff; --card:#ffffff;
+  --text:#1b2733; --text-dim:#5c6b7a; --line:#e4e9f0;
+  --brand:#2563eb; --brand-2:#0ea5e9; --accent:#f59e0b;
+  --chip:#eef4ff; --chip-text:#1d4ed8;
+  --shadow:0 12px 32px rgba(21,43,84,.10);
+  --hero-1:#2563eb; --hero-2:#0ea5e9; --hero-3:#6366f1;
+}
+html[data-theme="dark"]{
+  --bg:#0f141b; --bg-soft:#161d26; --card:#161d26;
+  --text:#e8eef6; --text-dim:#9aa8b8; --line:#253040;
+  --brand:#60a5fa; --brand-2:#38bdf8; --accent:#fbbf24;
+  --chip:#1c2942; --chip-text:#93c5fd;
+  --shadow:0 12px 32px rgba(0,0,0,.45);
+  --hero-1:#1d4ed8; --hero-2:#0369a1; --hero-3:#4f46e5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+  background:var(--bg); color:var(--text); line-height:1.7;
+  transition:background .3s,color .3s;
+}
+a{color:var(--brand);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+
+/* ============================ 顶部导航 ============================ */
+header{
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  border-bottom:1px solid var(--line);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;height:60px}
+.nav .logo{font-weight:800;letter-spacing:1px}
+.nav nav{display:flex;gap:18px;font-size:14.5px}
+.nav nav a{color:var(--text-dim)}
+.nav nav a:hover{color:var(--brand);text-decoration:none}
+.nav-right{display:flex;align-items:center;gap:10px}
+button{
+  font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line);background:var(--bg-soft);color:var(--text);
+  border-radius:999px;padding:7px 14px;transition:transform .08s,filter .2s;
+}
+button:hover{filter:brightness(1.05)}
+button:active{transform:translateY(1px)}
+
+/* ============================== 首屏 ============================== */
+.hero{
+  position:relative;overflow:hidden;color:#fff;
+  background:linear-gradient(120deg,var(--hero-1),var(--hero-2) 55%,var(--hero-3));
+  background-size:200% 200%;animation:flow 16s ease infinite;
+}
+@keyframes flow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.hero .wrap{padding:72px 20px 64px;display:flex;gap:36px;align-items:center;flex-wrap:wrap}
+.avatar{
+  width:118px;height:118px;border-radius:50%;flex:0 0 auto;
+  display:grid;place-items:center;font-size:44px;font-weight:800;
+  background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.55);
+  backdrop-filter:blur(4px);
+}
+.hero h1{font-size:40px;letter-spacing:2px;margin-bottom:8px}
+.hero .role{font-size:16px;opacity:.95}
+.hero .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{
+  font-size:13px;padding:4px 12px;border-radius:999px;
+  background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);
+}
+.hero .cta{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+.hero .cta a{
+  display:inline-block;padding:10px 18px;border-radius:10px;font-weight:700;font-size:14.5px;
+  background:#fff;color:#1d4ed8;text-decoration:none;
+}
+.hero .cta a.ghost{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.75)}
+
+/* ============================== 通用块 ============================== */
+section{padding:56px 0}
+section h2{
+  font-size:23px;margin-bottom:6px;display:flex;align-items:center;gap:10px;
+}
+section h2::before{
+  content:"";width:6px;height:22px;border-radius:3px;
+  background:linear-gradient(180deg,var(--hero-1),var(--hero-2));
+}
+.lead{color:var(--text-dim);margin-bottom:24px;font-size:14.5px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:20px;box-shadow:var(--shadow);transition:transform .18s,border-color .18s;
+}
+.card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--brand) 45%,var(--line))}
+.card h3{font-size:16.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.card p{font-size:14.3px;color:var(--text-dim)}
+.card ul{margin:8px 0 0 18px;font-size:14.3px;color:var(--text-dim)}
+.card li{margin:4px 0}
+.emoji{font-size:19px}
+
+/* 学习路线 */
+.timeline{border-left:2px dashed var(--line);margin-left:8px;padding-left:20px}
+.tl-item{position:relative;padding-bottom:22px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item::before{
+  content:"";position:absolute;left:-27px;top:6px;width:12px;height:12px;border-radius:50%;
+  background:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 18%,transparent);
+}
+.tl-item h4{font-size:15.5px;margin-bottom:4px}
+.tl-item p{font-size:14px;color:var(--text-dim)}
+
+/* 联系方式 */
+.contact-list{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.contact-item{
+  display:flex;align-items:center;gap:12px;background:var(--card);
+  border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);
+}
+.contact-item .k{font-size:12.5px;color:var(--text-dim);display:block}
+.contact-item .v{font-weight:700;font-size:15px;word-break:break-all}
+
+/* 作品 */
+.work{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.work .thumb{
+  width:190px;height:190px;border-radius:14px;flex:0 0 auto;
+  background:linear-gradient(135deg,#edc22e,#f2b179);color:#4a3c00;
+  display:grid;place-items:center;font-size:34px;font-weight:900;letter-spacing:1px;
+  box-shadow:var(--shadow);
+}
+.work .body{flex:1 1 320px}
+.badge{
+  display:inline-block;font-size:12.5px;padding:3px 10px;border-radius:999px;
+  background:var(--chip);color:var(--chip-text);margin:0 6px 6px 0;
+}
+footer{
+  border-top:1px solid var(--line);padding:26px 0 40px;text-align:center;
+  color:var(--text-dim);font-size:13.5px;
+}
+@media (max-width:640px){
+  .hero h1{font-size:30px}
+  .avatar{width:92px;height:92px;font-size:34px}
+  .nav nav{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <span class="logo">丁其炼</span>
+    <nav>
+      <a href="#about">关于我</a>
+      <a href="#life">兴趣</a>
+      <a href="#journey">学习路线</a>
+      <a href="#work">作品</a>
+      <a href="#contact">联系</a>
+    </nav>
+    <div class="nav-right">
+      <button id="theme-btn" title="切换深色 / 浅色主题">🌙 深色</button>
+    </div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="avatar">丁</div>
+    <div>
+      <h1>丁其炼</h1>
+      <p class="role">集成电路设计与集成系统 · 专业零基础，正在一步步学起来</p>
+      <div class="tags">
+        <span class="tag">🏸 羽毛球</span>
+        <span class="tag">🎵 音乐</span>
+        <span class="tag">💻 正在入门编程</span>
+        <span class="tag">🔧 集成电路</span>
+      </div>
+      <div class="cta">
+        <a href="#work">看看我的作品</a>
+        <a class="ghost" href="https://xingqier985211.github.io/jixie/2048/2048.html">玩一局 2048</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="about">
+    <h2>关于我</h2>
+    <p class="lead">一个从零开始、但愿意一直往前走的集成电路专业学生。</p>
+    <div class="grid">
+      <div class="card">
+        <h3><span class="emoji">🎓</span>专业</h3>
+        <p>集成电路设计与集成系统。从晶体管、逻辑门到芯片设计，这条路很长，但我打算一步一步走完。</p>
+      </div>
+      <div class="card">
+        <h3><span class="emoji">🌱</span>我的起点</h3>
+        <p>我是一个专业零基础的人，很多东西都要从头学。但我不会停在“不会”上——我会加以努力，一步一步学习成长，把不会的东西一个个变成会的东西。</p>
+      </div>
+      <div class="card">
+        <h3><span class="emoji">🎯</span>我在做什么</h3>
+        <ul>
+          <li>用 AI 编程工具（DeepSeek Harness）从零搭出可玩的小游戏</li>
+          <li>学习 Git / 命令行 / GitHub Pages 这些工程基本功</li>
+          <li>把每一次踩坑都记进 README，让下次不再踩</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="life">
+    <h2>兴趣</h2>
+    <p class="lead">让我在学习之外还能保持状态的两件事。</p>
+    <div class="grid">
+      <div class="card">
+        <h3><span class="emoji">🏸</span>羽毛球</h3>
+        <p>喜欢在场上来回奔跑的感觉。打球和学专业课其实很像：动作要领要一点点纠正，进步来自大量重复。</p>
+      </div>
+      <div class="card">
+        <h3><span class="emoji">🎵</span>音乐</h3>
+        <p>写代码卡住的时候，听一会儿音乐往往比硬撑更有效。它让我重新安静下来，再回头看问题。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <h2>学习路线</h2>
+    <p class="lead">零基础的人怎么入门？我的办法是：先跑通一个最小闭环，再一点点加功能。</p>
+    <div class="timeline">
+      <div class="tl-item">
+        <h4>第一步 · 把环境搭起来</h4>
+        <p>注册 GitHub、装好编辑器、把 Git 和命令行用熟。<code>cd</code> 进目录、<code>ls</code> 看文件、<code>mkdir</code> 建目录，这些是最小单位的基本功。</p>
+      </div>
+      <div class="tl-item">
+        <h4>第二步 · 先做出能跑的东西</h4>
+        <p>不追求完美，先用 AI 编程工具做出一个能玩起来的 2048：能移动、能合并、能计分、能判输赢。</p>
+      </div>
+      <div class="tl-item">
+        <h4>第三步 · 加功能、做验证</h4>
+        <p>补上计分制、主题切换、多局战绩；再让 AI 自己玩，用脚本批量跑对局，用数据确认它真的能合出 1024。</p>
+      </div>
+      <div class="tl-item">
+        <h4>第四步 · 讲清楚为什么</h4>
+        <p>把 AI 生成的代码逐段读懂、用自己的话写进 README，把踩过的坑和验证过程都留下来。这一步才是真正的学习。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="work">
+    <h2>作品</h2>
+    <p class="lead">纯前端单文件，双击就能玩，也部署在 GitHub Pages 上。</p>
+    <div class="card">
+      <div class="work">
+        <div class="thumb">2048</div>
+        <div class="body">
+          <h3 style="font-size:19px">2048 · 可玩版 + AI 自动演示</h3>
+          <p>
+            一个 38KB 的单文件 HTML 小游戏。阶段一是给人玩的：方向键 / WASD / 手机滑动操作，有得分、最高分、胜负判定和撤销。
+            阶段二是给 AI 玩的：用 Expectimax + α-β 剪枝自动决策，无人干预就能自动合出 1024（常常能冲到 2048）。
+          </p>
+          <div style="margin-top:12px">
+            <span class="badge">计分制</span>
+            <span class="badge">主题切换</span>
+            <span class="badge">多局战绩</span>
+            <span class="badge">Expectimax AI</span>
+          </div>
+          <p style="margin-top:14px">
+            <a href="2048/2048.html">▶ 立即试玩</a>
+            &nbsp;·&nbsp;
+            <a href="https://github.com/xingqier985211/jixie">查看源码与 README</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <h2>联系我</h2>
+    <p class="lead">欢迎交流，也欢迎约一场羽毛球。</p>
+    <div class="contact-list">
+      <div class="contact-item">
+        <span class="emoji">📱</span>
+        <span><span class="k">电话 / 微信</span><span class="v">18344216623</span></span>
+      </div>
+      <div class="contact-item">
+        <span class="emoji">🐙</span>
+        <span><span class="k">GitHub</span><span class="v"><a href="https://github.com/xingqier985211">xingqier985211</a></span></span>
+      </div>
+      <div class="contact-item">
+        <span class="emoji">📄</span>
+        <span><span class="k">个人简介</span><span class="v"><a href="profile.pdf">下载 PDF</a></span></span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <p>© <span id="year"></span> 丁其炼 · 集成电路设计与集成系统</p>
+    <p style="margin-top:6px">本页由纯 HTML/CSS 手写，托管于 GitHub Pages。</p>
+  </div>
+</footer>
+
+<script>
+/* 主题切换：一键切换 + 刷新后保留（localStorage） */
+(function () {
+  var KEY = 'home.theme';
+  var btn = document.getElementById('theme-btn');
+  function apply(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    btn.textContent = t === 'dark' ? '☀️ 浅色' : '🌙 深色';
+    try { localStorage.setItem(KEY, t); } catch (e) {}
+  }
+  var saved = 'light';
+  try { saved = localStorage.getItem(KEY) || 'light'; } catch (e) {}
+  if (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) saved = 'dark';
+  apply(saved);
+  btn.addEventListener('click', function () {
+    apply(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+  document.getElementById('year').textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>
