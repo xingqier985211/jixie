@@ -4,6 +4,11 @@
 > 个人主页（GitHub Pages）：**https://xingqier985211.github.io/jixie/**
 > 小游戏（单文件，双击也能玩）：[`projects/2048/2048.html`](projects/2048/2048.html)
 
+> ⚠️ **部署状态**：代码已推送到 `main`，GitHub Pages 还需在仓库
+> **Settings → Pages → Source: Deploy from a branch → main / (root) → Save** 手动开启一次。
+> 在此之前上面那个网址会显示 404（这是 GitHub 的提示页，不是文件有问题）。
+> 开启后等 1~2 分钟即可访问；`index.html` 在仓库根目录，双击本地也能直接看。
+
 ---
 
 ## 一、这个仓库里有什么
@@ -336,8 +341,9 @@ AI 把"提交"和"上传"混成了一件动作，这在本机网络受限、没�
 对一个"给别人看的学习作品"来说最合适；相比之下 GPL 会要求衍生作品也必须开源，Apache-2.0 则多了专利条款，
 对这个小仓库来说都用不上。
 
-**两步验证（2FA）**：我已在 GitHub 账号上开启（`Settings → Password and authentication → Two-factor authentication`）。
-开启后即使密码泄露，别人也无法只凭密码登录；代价是每次换设备登录要额外输一次验证码。
+**两步验证（2FA）**：已开启 GitHub 账号的两步验证（`Settings → Password and authentication → Two-factor authentication`）——
+开启后即使密码泄露，别人也无法只凭密码登录；代价是换设备登录要额外输一次验证码。
+（同学们照着做时注意：这一项**必须在网页上手动开**，命令行开不了。）
 
 **防"纯粘贴"承诺**：本仓库的游戏核心逻辑我逐段读懂过，尤其是 **① `2 2 2 2` 为什么只合成 `4 4`**
 （合并后要跳过被吃掉的那一格，保证一格一步只合并一次）和 **② AI 的评分函数为什么是"空格数优先"**
