@@ -71,6 +71,24 @@ py -3 tools/verify_pdf.py      # 校验结构 + 反解文字
 py -3 tools/check_layout.py    # 校验版面几何
 ```
 
+### 本地开发记录（提交历史）
+
+仓库不是"一次性把成品传上去"，而是按实际做事顺序分批提交的：
+
+| 提交 | 内容 |
+| --- | --- |
+| `chore: 仓库初始化` | `.gitignore` + MIT `LICENSE` |
+| `feat(2048): 游戏核心逻辑与构建脚本` | `src/game-core.js`、`build-game.cjs` |
+| `feat(2048): 单文件界面 + 阶段一可玩版` | 界面模板与生成出的 `2048.html` |
+| `test: 两层验证脚本` | `test-ai.cjs`、`test-page.cjs` |
+| `feat(site): 个人主页` | `index.html` |
+| `feat(profile): 个人简介 PDF 与工具` | `profile.pdf` + `tools/` |
+| `docs: README` | 本文件 |
+| `docs/readme-ai-notes` 分支合并 | 补充安装/命令说明（这次练习用**分支**改文档，再**合并**回 `main`） |
+
+> 本机的 git 没在 PATH 里，且用户主目录在当前环境不可写，所以把 `HOME` 指到工作区内部再调用
+> VS Code 自带的 git（脚本见 `tools/git-env.ps1`）。这只是本地环境问题，不影响仓库本身。
+
 ---
 
 ## 三、2048 怎么实现的
