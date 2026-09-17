@@ -89,6 +89,17 @@ py -3 tools/check_layout.py    # 校验版面几何
 > 本机的 git 没在 PATH 里，且用户主目录在当前环境不可写，所以把 `HOME` 指到工作区内部再调用
 > VS Code 自带的 git（脚本见 `tools/git-env.ps1`）。这只是本地环境问题，不影响仓库本身。
 
+### 部署（GitHub Pages）
+
+1. 把本地提交推送到 GitHub：`git push -u origin main`
+2. 仓库 → **Settings → Pages** → Source 选 **Deploy from a branch** → 分支选 `main`、目录选 **/(root)** → Save
+3. 等 1~2 分钟后访问：
+   - 个人主页：<https://xingqier985211.github.io/jixie/>
+   - 2048 游戏：<https://xingqier985211.github.io/jixie/2048/2048.html>
+
+> 如果还显示 404：先确认 Pages 已开启（Settings → Pages 顶部会显示站点地址），
+> 再确认首页文件名是 `index.html` 且放在仓库根目录。第一次部署一般要等一两分钟。
+
 ---
 
 ## 三、2048 怎么实现的
