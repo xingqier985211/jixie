@@ -85,12 +85,24 @@ function Invoke-Push([string[]]$extra) {
   return $LASTEXITCODE
 }
 
+# git may exit non-zero even when the push actually landed (credential helper
+# noise). So succeed/fail is decided by what the remote reports, not by $LASTEXITCODE.
+function Get-RemoteMain {
+  $out = & $gitExe --no-pager -c "include.path=$cfgFile" ls-remote origin refs/heads/main 2>$null
+  if (-not $out) { return '' }
+  $line = ($out | Select-Object -First 1)
+  return ($line -split "\s+")[0]
+}
+
+$localSha = (& $gitExe rev-parse main).Trim()
 $pushOk = $false
 try {
   Write-Host ''
+  Write-Host "Local main : $localSha"
   Write-Host 'Pushing main (Windows certificate store) ...' -ForegroundColor Cyan
-  $code = Invoke-Push @()
-  if ($code -ne 0) {
+  & $gitExe --no-pager -c "include.path=$cfgFile" push -u origin main
+  $remoteSha = Get-RemoteMain
+  if ($remoteSha -ne $localSha) {
     Write-Host ''
     Write-Host 'That failed. Most likely the certificate could not be verified.' -ForegroundColor Yellow
     Write-Host 'Retrying once WITHOUT certificate verification would send your token to' -ForegroundColor Yellow
@@ -103,12 +115,15 @@ try {
     }
     if ($ans -eq 'y' -or $ans -eq 'Y') {
       Write-Host 'Retrying ...' -ForegroundColor Cyan
-      $code = Invoke-Push @('-c', 'http.sslBackend=openssl', '-c', 'http.sslVerify=false')
-      if ($code -ne 0) { throw 'git push failed, see the message above.' }
+      & $gitExe --no-pager -c "include.path=$cfgFile" -c http.sslBackend=openssl -c http.sslVerify=false push -u origin main
+      $remoteSha = Get-RemoteMain
+      if ($remoteSha -ne $localSha) { throw 'git push failed, see the message above.' }
     } else {
       throw 'Stopped at your request. Nothing was pushed.'
     }
   }
+  Write-Host ''
+  Write-Host "Remote main: $remoteSha  ->  matches local, push confirmed." -ForegroundColor Green
   $pushOk = $true
 
   Write-Host ''
