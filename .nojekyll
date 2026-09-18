@@ -1,0 +1,8 @@
+# 这个文件是空的，作用是告诉 GitHub Pages：不要用 Jekyll 处理本站点。
+#
+# 原因：GitHub Pages 默认会跑一遍 Jekyll 构建，而 Jekyll 会忽略以下划线开头的文件/目录
+# （例如本项目里的 projects/2048/src/index.template.html）。
+# 结果是那些文件在网页上会 404，虽然它们在仓库里明明存在。
+# 放一个 .nojekyll 就能关掉 Jekyll，改成按原样发布静态文件。
+#
+# 参考：https://github.com/jekyll/jekyll/issues/55
