@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pdfkit_lite import PdfBuilder, Doc
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-YAHEI = r'C:\Windows\Fonts\msyh.ttc'
+CJK = r'C:\Windows\Fonts\simhei.ttf'
 ARIAL = r'C:\Windows\Fonts\arial.ttf'
 ARIAL_BD = r'C:\Windows\Fonts\arialbd.ttf'
 MONO = r'C:\Windows\Fonts\consola.ttf'
@@ -34,16 +34,14 @@ INFO = [
 ]
 
 INTRO = [
-    '我是丁其炼，就读于集成电路设计与集成系统专业。我的专业基础是从零开始的，刚接触这个方向时，很多概念对'
-    '我来说都很陌生。但我不打算停在“不会”这一步：我愿意花时间去补，把不懂的问题一个个啃下来，一步一步学习、'
-    '一步步成长，把每一次“不会”都变成“会了”。',
+    '我是丁其炼，就读于集成电路设计与集成系统专业。我的专业基础是从零开始的，刚接触时很多概念都很陌生，'
+    '但我不打算停在“不会”这一步：愿意花时间补，把不懂的问题一个个啃下来，一步一步学习成长。',
 
-    '做法上我习惯从最小的闭环开始：先让东西真正跑起来，再回头补原理、加功能。这次用 AI 工具做 2048，我先做出'
-    '能玩的版本，再一行行读懂 AI 生成的关键代码——方块的合并顺序、AI 的评分函数与搜索逻辑；接着补上计分制、'
-    '主题切换、多局战绩；最后写脚本让 AI 自己跑上百局，用数据确认它确实能稳定合出 1024。',
+    '做法上我习惯从最小闭环开始：先让东西真正跑起来，再回头补原理、加功能。这次用 AI 工具做 2048，我先做出'
+    '能玩的版本，再一行行读懂 AI 生成的关键代码——方块的合并顺序、评分函数与搜索逻辑；接着补上计分制、'
+    '主题切换、多局战绩，最后写脚本批量跑局验证。',
 
-    '这个过程让我认识到：用 AI 做出东西很快，但只有自己能讲清楚“为什么这样写”，做出来的东西才真正属于自己。'
-    '这也正是我选择把每一步过程都记录下来的原因。',
+    '这个过程让我认识到：用 AI 做出东西很快，但只有自己能讲清楚“为什么这样写”，做出来的东西才真正属于自己。',
 ]
 
 QUOTE = ('我是零基础起步，但我相信成长来自持续的努力：今天比昨天多懂一点，把每一步走扎实，'
@@ -54,14 +52,10 @@ TAG_TEXT = ('打羽毛球让我习惯了“反复练习—纠正动作—再练�
             '音乐则是我卡住时让自己安静下来的方式。进步不靠一次用力，而靠一直不停。')
 
 JOURNEY = [
-    ('环境与工具', '注册并管理 GitHub 仓库，熟悉 Git 的提交、分支、合并，以及 cd / ls / mkdir 等命令行基础操作，'
-                   '把仓库、分支、提交这些东西先弄明白。'),
-    ('第一个作品', '用纯前端 HTML/CSS/JS 做出可玩的 2048：得分与最高分、胜负判定、撤销、键盘与触屏操作，'
-                   '外加计分制、主题切换、多局战绩三个增强功能。'),
-    ('让 AI 来玩', '实现 Expectimax + α-β 剪枝的自动对局（随机层按 90%/10% 求期望），'
-                   '并用无头脚本批量跑局：10 局里 1024 达成 10/10、2048 达成 7/10。'),
-    ('讲清为什么', '在 README 里记录提示词迭代、关键代码逻辑、查证 AI 错误信息的过程与踩坑总结，'
-                   '确保每一处代码自己都能说明白。'),
+    ('环境与工具', '注册并管理 GitHub 仓库，熟悉 Git 的提交、分支、合并与 cd / ls / mkdir 等命令行操作。'),
+    ('第一个作品', '用纯前端 HTML/CSS/JS 做出可玩的 2048：得分与最高分、胜负判定、撤销、键盘与触屏操作。'),
+    ('让 AI 来玩', '实现 Expectimax + α-β 剪枝的自动对局，无头脚本跑局：1024 达成 10/10、2048 达成 7/10。'),
+    ('讲清为什么', '在 README 里记录提示词迭代、关键代码逻辑、查证 AI 错误与踩坑总结。'),
 ]
 
 END = '希望有机会加入协会，在真实的项目里继续学、继续做，也想和同样喜欢动手的同学一起把东西做出来。'
@@ -69,7 +63,7 @@ END = '希望有机会加入协会，在真实的项目里继续学、继续做�
 # 作品小节
 WORK_TITLE = '2048 小游戏（纯前端单文件）'
 WORK_URL = 'xingqier985211.github.io/jixie/2048/2048.html'
-WORK_TEXT = ('阶段一：键盘 / 触屏可玩，含得分与最高分、胜负判定、撤销，并实现了计分制、主题切换、多局战绩三个增强功能。'
+WORK_TEXT = ('阶段一：键盘 / 触屏可玩，含得分、胜负判定、撤销，另有计分制、主题切换、多局战绩三个增强功能。'
              '阶段二：Expectimax + α-β 剪枝的 AI 自动对局，实测 10 局中 1024 达成 10/10、2048 达成 7/10。')
 
 # 布局常量：想调松紧只改这里
@@ -79,10 +73,10 @@ S_NAME = 25.0       # 姓名
 S_SUB = 10.4
 S_INFO = 9.9
 S_FOOT = 8.6
-LH_BODY = 1.55      # 正文行距倍数
-GAP_SECTION = 14.0  # 小节前留白
+LH_BODY = 1.42      # 正文行距倍数
+GAP_SECTION = 11.0  # 小节前留白
 GAP_SECTION_AFTER = 4.5
-GAP_BLOCK = 4.5     # 段落后留白
+GAP_BLOCK = 3.5     # 段落后留白
 INFO_ROW_H = 15.0
 MARGIN = 46         # 左右页边距
 FOOT_LINE_Y = 72    # 页脚横线
@@ -108,8 +102,8 @@ def main():
     b = PdfBuilder()
     chars = collect_chars()
     fonts = {
-        'R': b.add_font(YAHEI, 0, chars, ps_name='DQLYaHei'),
-        'B': b.add_font(YAHEI, 1, chars, ps_name='DQLYaHeiBold', bold=True),
+        'R': b.add_font(CJK, 0, chars, ps_name='DQLHei'),
+        'B': b.add_font(CJK, 0, chars, ps_name='DQLHeiBold', bold=True),
         'D': b.add_font(ARIAL, 0, chars + 'DQL', ps_name='DQLArial'),
         'E': b.add_font(ARIAL_BD, 0, chars + 'DQL', ps_name='DQLArialBold', bold=True),
         'M': b.add_font(MONO, 0, chars, ps_name='DQLMono'),

@@ -33,12 +33,30 @@ class PdfBuilder:
         head = ('<< /Length %d /Filter /FlateDecode %s>>\n' % (len(comp), extra)).encode('ascii')
         return self.add_obj(head + b'stream\n' + comp + b'\nendstream')
 
-    # --------------------------- 字体（子集） ---------------------------
+    # ---------------------- 字体（内嵌完整字体） ---------------------- *
+    # 说明：早期版本用自制的 TrueType 子集（重排字形编号），在某些阅读器里出现
+    # “字形错位”——文字位置和数量都对，但显示成无关的拉丁字母。原因是子集字体的
+    # glyf/loca 表与 PDF 声明的 CID 对不上。现在改为内嵌**完整字体文件**：
+    # CID 直接等于字体本身的 glyph id，配 /CIDToGIDMap /Identity，
+    # 映射关系由字体文件保证，不可能错位。代价是文件变大（约 10MB），但绝对可靠。
+    # ------------------------------------------------------------------
     def add_font(self, ttf_path, font_index, chars, ps_name='SubFont', bold=False):
         font = TrueTypeFont(ttf_path, font_index)
-        unicodes = set(ord(c) for c in chars if ord(c) > 31)
-        unicodes.add(32)
-        fontfile, cp2gid, num_glyphs = build_subset(font, unicodes, name=ps_name)
+
+        # unicode -> 原字体 glyph id（原样保留，不重排）
+        cp2gid = {}
+        for ch in set(chars):
+            cp = ord(ch)
+            if cp <= 31:
+                continue
+            gid = font.cmap.get(cp)
+            if gid:
+                cp2gid[cp] = gid
+        cp2gid[32] = font.cmap.get(32, 0) or cp2gid.get(32, 0)
+        # 记录字体里缺字形的字符：这些字符会渲染成空白/方块，必须显式报出来而不是静默忽略
+        missing = [ch for ch in sorted(set(chars)) if ord(ch) > 31 and ord(ch) not in font.cmap]
+
+        fontfile = open(ttf_path, 'rb').read()
 
         flags = 4 | 32 | (1 << 18) if bold else 4 | 32
         bbox = [0, -200, 1000, 900]
@@ -47,29 +65,28 @@ class PdfBuilder:
         descent = int(font.descent * scale)
         cap = int(ascent * 0.7)
 
-        cid2gid = bytes(bytearray().join(struct.pack('>H', g) for g in ([0] + sorted(cp2gid.values()))))
-        # 注意：CID = 子集 gid，因此 CIDToGIDMap 可以是恒等映射 -> 用 /Identity
         fontfile_num = self.add_stream(fontfile, '/Length1 %d' % len(fontfile))
-        # CIDSet：声明子集里实际用到哪些 CID（PDF/A 与部分严格阅读器要求）
-        n_bytes = (num_glyphs + 7) // 8
-        bits = bytearray(n_bytes)
-        for g in cp2gid.values():
-            bits[g >> 3] |= (0x80 >> (g & 7))
-        bits[0] |= 0x80   # .notdef 也算
-        cidset_num = self.add_stream(bytes(bits))
+
+        # /W 只列用到的字形宽度（c 形式：起始 CID + [宽度...]），其余走 /DW
+        used = sorted(set(cp2gid.values()) | {0})
+        w_parts = []
+        for g in used:
+            w_parts.append('%d [%d]' % (g, int(font.advance(g))))
+        w_array = ' '.join(w_parts)
+
         descriptor = (
             '<< /Type /FontDescriptor /FontName /%s /Flags %d '
             '/FontBBox [%d %d %d %d] /ItalicAngle 0 /Ascent %d /Descent %d /CapHeight %d '
-            '/StemV %d /FontFile2 %d 0 R /CIDSet %d 0 R >>'
+            '/StemV %d /FontFile2 %d 0 R >>'
             % (ps_name, flags, bbox[0], bbox[1], bbox[2], bbox[3], ascent, descent, cap,
-               120 if bold else 80, fontfile_num, cidset_num)
+               120 if bold else 80, fontfile_num)
         )
         desc_num = self.add_obj(descriptor.encode('ascii'))
         cidfont = (
             '<< /Type /Font /Subtype /CIDFontType2 /BaseFont /%s '
             '/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> '
-            '/FontDescriptor %d 0 R /DW 1000 /W [0 [%s]] /CIDToGIDMap /Identity >>'
-            % (ps_name, desc_num, ' '.join(str(int(font.advance(g))) for g in range(num_glyphs)))
+            '/FontDescriptor %d 0 R /DW 1000 /W [%s] /CIDToGIDMap /Identity >>'
+            % (ps_name, desc_num, w_array)
         )
         cid_num = self.add_obj(cidfont.encode('ascii'))
         tounicode = self._tounicode_cmap(cp2gid)
@@ -81,8 +98,9 @@ class PdfBuilder:
         return {
             'obj': font_num,
             'cp2gid': cp2gid,
-            'gid2adv': {g: font.advance(g) for g in range(num_glyphs)},
+            'gid2adv': {g: font.advance(g) for g in used},
             'units': font.units_per_em,
+            'missing': missing,
         }
 
     def _tounicode_cmap(self, cp2gid):

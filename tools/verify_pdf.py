@@ -7,6 +7,7 @@
 """
 import os
 import re
+import struct
 import sys
 import zlib
 
@@ -95,26 +96,71 @@ def extract_text(data, objs, maps):
     return '\n'.join(out)
 
 
+def check_font_files(data, objs):
+    """检查内嵌字体程序（FontFile2 = TrueType）是否完整：
+    必须带 head / cmap / glyf / loca / hhea / hmtx / maxp 这些表。
+    早期版本用自制子集，缺表导致阅读器里字形错位 —— 这个检查就是为了不再犯同样的错。"""
+    problems = []
+    infos = []
+    for num, (s, e) in objs.items():
+        body = data[s:e]
+        m = re.search(rb'/FontFile2 (\d+) 0 R', body)
+        if not m:
+            continue
+        fnum = int(m.group(1))
+        s2, e2 = objs[fnum]
+        b2 = data[s2:e2]
+        sm = re.search(rb'stream\n', b2)
+        raw = b2[sm.end():].rsplit(b'\nendstream', 1)[0]
+        try:
+            prog = zlib.decompress(raw)
+        except Exception as ex:
+            problems.append('字体对象 %d 解压失败: %s' % (fnum, ex))
+            continue
+        if prog[:4] not in (b'\x00\x01\x00\x00', b'true', b'ttcf', b'OTTO'):
+            problems.append('字体对象 %d 的 sfnt 头不合法: %r' % (fnum, prog[:4]))
+            continue
+        num_tables = struct.unpack('>H', prog[4:6])[0]
+        tables = []
+        for i in range(num_tables):
+            p = 12 + i * 16
+            tables.append(prog[p:p + 4].decode('latin-1'))
+        required = ['head', 'cmap', 'glyf', 'loca', 'hhea', 'hmtx', 'maxp']
+        missing = [t for t in required if t not in tables]
+        if missing:
+            problems.append('字体对象 %d 缺表: %s' % (fnum, ', '.join(missing)))
+        infos.append((fnum, len(prog), num_tables))
+    return infos, problems
+
+
 def main():
     path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'profile.pdf')
     data, objs, problems = parse(path)
     print('对象数：%d' % len(objs))
-    print('结构问题：%s' % ('无' if not problems else '；'.join(problems)))
+    print('PDF 结构问题：%s' % ('无' if not problems else '；'.join(problems)))
+
+    font_infos, font_problems = check_font_files(data, objs)
+    print('内嵌字体程序（FontFile2）：%d 个' % len(font_infos))
+    for fnum, size, ntab in font_infos:
+        print('  对象 %d：%.2f MB，%d 张表（必备表齐全）' % (fnum, size / 1048576.0, ntab))
+    if font_problems:
+        print('字体问题：')
+        for p in font_problems:
+            print('  - ' + p)
+
     maps = cid_font_maps(data, objs)
-    print('内嵌字体数（含 ToUnicode）：%d' % len(maps))
-    for n, mp in maps.items():
-        print('  字体对象 %d：映射 %d 个字形' % (n, len(mp)))
+    print('ToUnicode 映射：%d 个字体' % len(maps))
     text = extract_text(data, objs, maps)
     out_txt = path + '.extracted.txt'
     open(out_txt, 'w', encoding='utf-8').write(text)
-    print('---- 反解出的文字（前 900 字）----')
-    print(text[:900].encode('utf-8', 'replace').decode('utf-8'))
     bad = text.count('?')
-    print('---- 反解失败（?）数量：%d ----' % bad)
-    ok = (not problems) and bool(maps) and bad == 0
-    print('校验结果：%s' % ('PASS 通过' if ok else 'FAIL 有问题'))
-    print('反解文字已保存到 %s' % out_txt)
+    print('文字反解：%d 行，无法映射的字符 %d 个' % (text.count('\n') + 1, bad))
+    print('反解结果已保存到 %s' % out_txt)
+
+    ok = (not problems) and (not font_problems) and bool(font_infos) and bad == 0
+    print('')
+    print('校验结果：%s' % ('PASS 通过（结构完整、字体完整、文字可反解）' if ok else 'FAIL 有问题'))
     return 0 if ok else 1
 
 
