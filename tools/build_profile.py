@@ -62,7 +62,7 @@ END = '希望有机会加入协会，在真实的项目里继续学、继续做�
 
 # 作品小节
 WORK_TITLE = '2048 小游戏（纯前端单文件）'
-WORK_URL = 'xingqier985211.github.io/jixie/2048/2048.html'
+WORK_URL = 'xingqier985211.github.io/jixie/game.html'
 WORK_TEXT = ('阶段一：键盘 / 触屏可玩，含得分、胜负判定、撤销，另有计分制、主题切换、多局战绩三个增强功能。'
              '阶段二：Expectimax + α-β 剪枝的 AI 自动对局，实测 10 局中 1024 达成 10/10、2048 达成 7/10。')
 
@@ -154,11 +154,16 @@ def main():
 
     d.y -= 2
     report.append(('quote', lines_of(QUOTE, x=left + 14), round(d.y, 1)))
-    box_top = d.y + 10
-    d.text(QUOTE, size=S_BODY, font='R', color=(0.118, 0.227, 0.541), line_gap=LH_BODY, x=left + 14)
-    box_h = box_top - d.y - 3
-    d.rect(left, d.y - 1, width, box_h, color=(0.937, 0.965, 1.0))
-    d.rect(left, d.y - 1, 3.0, box_h, color=(0.145, 0.388, 0.921))
+    first_base, last_base, _ = d.text(QUOTE, size=S_BODY, font='R',
+                                      color=(0.118, 0.227, 0.541), line_gap=LH_BODY, x=left + 14)
+    # 框的上下边由文字的实际基线算出：上留 0.55em、下留 0.30em（含降部余量）
+    pad_top = S_BODY * 0.55
+    pad_bottom = S_BODY * 0.30
+    box_bottom = last_base - pad_bottom
+    box_h = (first_base + pad_top) - box_bottom
+    d.rect(left, box_bottom, width, box_h, color=(0.937, 0.965, 1.0))
+    d.rect(left, box_bottom, 3.0, box_h, color=(0.145, 0.388, 0.921))
+    report.append(('quote box', round(box_h, 1), round(box_bottom, 1)))
 
     # ---------------------- 兴趣与性格 ----------------------
     section('兴趣与性格')

@@ -207,12 +207,19 @@ class Doc:
 
     def text(self, s, size=10.5, font='R', color=(0.12, 0.16, 0.22), x=None, align='left',
              max_width=None, force_width=None, line_gap=1.42, indent=0):
-        """写一段文字；可自动换行（CJK 逐字断行，ASCII 尽量整词）。"""
+        """写一段文字；可自动换行（CJK 逐字断行，ASCII 尽量整词）。
+
+        返回 (first_baseline, last_baseline, next_y)：
+        调用方可以用 first/last 精确地把背景框套在文字外面，
+        不必靠“猜行数 × 行距”来估算（估错就会出现背景压住文字的重叠）。
+        """
         f = self.fonts[font]
         if x is None:
             x = self.margin
         avail = max_width if max_width else (self.width - (x - self.margin))
         lines = self._wrap(s, f, size, avail)
+        first = None
+        last = None
         for ln in lines:
             w = self.text_w(ln, f, size)
             if force_width:
@@ -231,8 +238,11 @@ class Doc:
                 'BT /%s %.2f Tf %.2f Tz %.3f %.3f %.3f rg 1 0 0 1 %.2f %.2f Tm <%s> Tj ET'
                 % (font, size, scale, color[0], color[1], color[2], tx, self.y, enc.hex().upper())
             )
+            if first is None:
+                first = self.y
+            last = self.y
             self.y -= size * line_gap
-        return self.y
+        return first, last, self.y
 
     def text_w(self, s, f, size):
         return self.b.text_width(f, s, size)

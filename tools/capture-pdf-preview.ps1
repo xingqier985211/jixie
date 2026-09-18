@@ -5,6 +5,10 @@
 #   powershell -ExecutionPolicy Bypass -File .\tools\capture-pdf-preview.ps1
 #
 # Output: _tools\pdf-page1.png  (please tell me when it is done)
+#
+# KNOWN LIMITATION (tested on this machine): headless Edge does NOT render the built-in
+# PDF plugin, so the screenshot comes out as an empty grey page (same byte size every run).
+# Use capture-screen.ps1 instead: open profile.pdf normally, then screenshot the screen.
 
 $ErrorActionPreference = 'Stop'
 
@@ -37,6 +41,9 @@ $p = Start-Process -FilePath $edge -PassThru -ArgumentList @(
   '--window-size=1400,1900',
   '--force-device-scale-factor=1.5',
   '--hide-scrollbars',
+  # PDF viewer loads asynchronously; without a wait the screenshot comes out blank
+  '--virtual-time-budget=20000',
+  '--run-all-compositor-stages-before-draw',
   "--user-data-dir=$profileDir",
   '--no-first-run',
   '--no-default-browser-check',
