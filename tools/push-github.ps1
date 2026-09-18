@@ -156,5 +156,5 @@ if ($pushOk) {
   Write-Host ''
   Write-Host 'Done. Wait 1-2 minutes, then open:' -ForegroundColor Green
   Write-Host '  https://xingqier985211.github.io/jixie/'
-  Write-Host '  https://xingqier985211.github.io/jixie/2048/2048.html'
+  Write-Host '  https://xingqier985211.github.io/jixie/game.html'
 }
