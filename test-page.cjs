@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const htmlPath = path.join(__dirname, 'projects', '2048', '2048.html');
+const htmlPath = path.join(__dirname, 'game.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
 if (!scripts.length) { console.error('没找到 <script> 块'); process.exit(1); }

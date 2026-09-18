@@ -10,7 +10,7 @@ const path = require('path');
 const root = __dirname;
 const corePath = path.join(root, 'projects', '2048', 'src', 'game-core.js');
 const tplPath = path.join(root, 'projects', '2048', 'src', 'index.template.html');
-const outPath = path.join(root, 'projects', '2048', '2048.html');
+const outPath = path.join(root, 'game.html');
 
 const core = fs.readFileSync(corePath, 'utf8').trim();
 const tpl = fs.readFileSync(tplPath, 'utf8');

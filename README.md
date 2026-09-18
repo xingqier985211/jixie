@@ -2,7 +2,7 @@
 
 > 仓库地址：https://github.com/xingqier985211/jixie
 > 个人主页（GitHub Pages）：**https://xingqier985211.github.io/jixie/**
-> 小游戏（单文件，双击也能玩）：[`projects/2048/2048.html`](projects/2048/2048.html)
+> 小游戏（单文件，双击也能玩）：[`game.html`](game.html)
 
 > ⚠️ **部署状态**：代码已推送到 `main`，GitHub Pages 还需在仓库
 > **Settings → Pages → Source: Deploy from a branch → main / (root) → Save** 手动开启一次。
@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | 个人简介 PDF | [`profile.pdf`](profile.pdf)（源文件 `profile.src.html`，另有自写生成器 `tools/build_profile.py`） | ✅ |
 | 个人网站（HTML/CSS + GitHub Pages） | [`index.html`](index.html) | ✅ |
-| 小游戏：2048 · 阶段一（能自己玩） | [`projects/2048/2048.html`](projects/2048/2048.html) | ✅ |
+| 小游戏：2048 · 阶段一（能自己玩） | [`game.html`](game.html) | ✅ |
 | 小游戏：2048 · 阶段二（AI 自动演示合出 1024） | 同上，AI 达到 **1024 成功率 100%**，2048 达成率 70% | ✅ |
 | 至少 1 个新增功能 | 做了 3 个：计分制 / 主题切换 / 多局战绩 | ✅ |
 | LICENSE | [`LICENSE`](LICENSE)（MIT） | ✅ |
@@ -31,31 +31,32 @@
 ```
 .
 ├── index.html                     # 个人网站（纯 HTML/CSS/JS，GitHub Pages 入口）
+├── game.html                      # ★ 提交的游戏：单文件、双击即玩
 ├── profile.pdf                    # 个人简介 PDF（已生成，直接交）
-├── profile.src.html               # 个人简介的 HTML 源（内容改这里）
 ├── LICENSE                        # MIT
 ├── README.md                      # 本文件
-├── projects/2048/
-│   ├── 2048.html                  # ★ 提交的游戏：单文件、双击即玩
-│   └── src/
-│       ├── game-core.js           # 游戏核心逻辑（浏览器 + Node 共用）
-│       └── index.template.html    # 界面模板（含 /*__GAME_CORE__*/ 占位符）
-├── build-game.cjs                 # 构建：把核心注入模板，生成单文件 2048.html
+├── projects/2048/src/
+│   ├── game-core.js               # 游戏核心逻辑（浏览器 + Node 共用）
+│   └── index.template.html        # 界面模板（含 /*__GAME_CORE__*/ 占位符）
+├── build-game.cjs                 # 构建：把核心注入模板，生成单文件 game.html
 ├── test-ai.cjs                    # 验证 1：引擎级批量对局，统计达标率
 ├── test-page.cjs                  # 验证 2：把单文件里的脚本放进最小 DOM 桩跑，验证页面级 AI
-└── tools/                         # 个人简介 PDF 的生成与校验工具（纯 Python 标准库）
+└── tools/                         # 个人简介 PDF 的生成与校验、以及本地 git 环境脚本
     ├── fontkit.py                 # 读取系统字体、生成 TrueType 子集
     ├── pdfkit_lite.py             # 极简 PDF 生成器（内嵌中文字体子集）
     ├── build_profile.py           # 排版并输出 profile.pdf
     ├── verify_pdf.py              # 校验 PDF 结构，并反解文字检查是否缺字
-    └── check_layout.py            # 校验版面几何：有没有越界、有没有和页脚重叠
+    ├── check_layout.py            # 校验版面几何：有没有越界、有没有和页脚重叠
+    ├── dump_lines.py              # 打印每行文字的坐标，排查版面用
+    ├── git-env.ps1                # 本地 git 环境（本机 git 不在 PATH 里）
+    └── push-github.ps1            # 一键推送 + 开启 GitHub Pages
 ```
 
 ---
 
 ## 二、怎么运行
 
-**游戏**：直接双击 `projects/2048/2048.html`，或访问 <https://xingqier985211.github.io/jixie/2048/2048.html>。
+**游戏**：直接双击 `game.html`，或访问 <https://xingqier985211.github.io/jixie/game.html>。
 纯前端单文件，无框架、无依赖、不需要服务器。
 
 **个人网站**：双击 `index.html`，或访问 <https://xingqier985211.github.io/jixie/>。
@@ -100,7 +101,7 @@ py -3 tools/check_layout.py    # 校验版面几何
 2. 仓库 → **Settings → Pages** → Source 选 **Deploy from a branch** → 分支选 `main`、目录选 **/(root)** → Save
 3. 等 1~2 分钟后访问：
    - 个人主页：<https://xingqier985211.github.io/jixie/>
-   - 2048 游戏：<https://xingqier985211.github.io/jixie/2048/2048.html>
+   - 2048 游戏：<https://xingqier985211.github.io/jixie/game.html>
 
 > 如果还显示 404：先确认 Pages 已开启（Settings → Pages 顶部会显示站点地址），
 > 再确认首页文件名是 `index.html` 且放在仓库根目录。第一次部署一般要等一两分钟。
