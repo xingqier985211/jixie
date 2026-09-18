@@ -136,8 +136,19 @@ class PdfBuilder:
         return bytes(out)
 
     def add_page(self, ops):
-        """ops 是内容流字符串列表（已含坐标）。"""
-        content = '\n'.join(ops)
+        """ops 可以是：
+        - 字符串列表：按给定顺序输出；
+        - (图层, 指令) 列表：先按图层号排序再输出。
+
+        为什么要分层：PDF 的绘制顺序 = 指令顺序，**后画的会盖住先画的**。
+        早期版本没分层，导致“先画文字、后画浅色底框”把引用文字整块盖没了。
+        现在背景统一用 LAYER_BG、正文用 LAYER_TEXT，输出时自动保证背景在下。
+        """
+        if ops and isinstance(ops[0], (tuple, list)):
+            ordered = [op for _, op in sorted(ops, key=lambda t: t[0])]
+        else:
+            ordered = list(ops)
+        content = '\n'.join(ordered)
         c_num = self.add_stream(content.encode('latin-1'))
         font_res = self._font_resources()
         page = ('<< /Type /Page /Parent %d 0 R /MediaBox [0 0 %.2f %.2f] '
@@ -185,25 +196,35 @@ class PdfBuilder:
 
 
 # ============================ 文本布局助手 ============================
+# 图层：数字小的先输出（先画的在下面）。背景/色块必须早于文字，
+# 否则色块会盖住文字 —— 这个坑真实发生过（引用块把整段引用文字盖没了）。
+LAYER_BG = 0      # 背景色块、色条
+LAYER_RULE = 1    # 分割线、时间轴
+LAYER_TEXT = 2    # 所有文字
+
+
 class Doc:
     def __init__(self, builder, fonts, margin=48):
         self.b = builder
         self.fonts = fonts
         self.margin = margin
-        self.ops = []
+        self.ops = []          # [(layer, op)]
         self.y = builder.height - margin
         self.width = builder.width - 2 * margin
 
     def set_y(self, y):
         self.y = y
 
-    def line(self, x1, y1, x2, y2, color=(0.85, 0.88, 0.92), w=0.7):
-        self.ops.append('q %.3f %.3f %.3f RG %.2f w %.2f %.2f m %.2f %.2f l S Q'
-                        % (color[0], color[1], color[2], w, x1, y1, x2, y2))
+    def _add(self, layer, op):
+        self.ops.append((layer, op))
 
-    def rect(self, x, y, w, h, color=(0.93, 0.95, 0.99), radius=0):
-        self.ops.append('q %.3f %.3f %.3f rg %.2f %.2f %.2f %.2f re f Q'
-                        % (color[0], color[1], color[2], x, y, w, h))
+    def line(self, x1, y1, x2, y2, color=(0.85, 0.88, 0.92), w=0.7, layer=LAYER_RULE):
+        self._add(layer, 'q %.3f %.3f %.3f RG %.2f w %.2f %.2f m %.2f %.2f l S Q'
+                  % (color[0], color[1], color[2], w, x1, y1, x2, y2))
+
+    def rect(self, x, y, w, h, color=(0.93, 0.95, 0.99), radius=0, layer=LAYER_BG):
+        self._add(layer, 'q %.3f %.3f %.3f rg %.2f %.2f %.2f %.2f re f Q'
+                  % (color[0], color[1], color[2], x, y, w, h))
 
     def text(self, s, size=10.5, font='R', color=(0.12, 0.16, 0.22), x=None, align='left',
              max_width=None, force_width=None, line_gap=1.42, indent=0):
@@ -234,10 +255,9 @@ class Doc:
                 else:
                     tx = x + indent
             enc = self.b._encode(f, ln)
-            self.ops.append(
-                'BT /%s %.2f Tf %.2f Tz %.3f %.3f %.3f rg 1 0 0 1 %.2f %.2f Tm <%s> Tj ET'
-                % (font, size, scale, color[0], color[1], color[2], tx, self.y, enc.hex().upper())
-            )
+            self._add(LAYER_TEXT,
+                      'BT /%s %.2f Tf %.2f Tz %.3f %.3f %.3f rg 1 0 0 1 %.2f %.2f Tm <%s> Tj ET'
+                      % (font, size, scale, color[0], color[1], color[2], tx, self.y, enc.hex().upper()))
             if first is None:
                 first = self.y
             last = self.y

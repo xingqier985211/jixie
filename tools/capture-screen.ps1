@@ -8,7 +8,7 @@
 # Output: _tools\screen.png  (tell me when it is done and I will look at it)
 
 param(
-  [int]$DelaySeconds = 5
+  [int]$DelaySeconds = 15
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,7 +20,7 @@ $out = Join-Path $outDir 'screen.png'
 
 Write-Host ''
 Write-Host "Taking a screenshot of the whole screen in $DelaySeconds seconds." -ForegroundColor Cyan
-Write-Host 'Please bring the PDF window to the front now.' -ForegroundColor Cyan
+Write-Host 'Now click the PDF window so it is in front, and scroll it to the top.' -ForegroundColor Cyan
 for ($i = $DelaySeconds; $i -gt 0; $i--) {
   Write-Host ("  {0}..." -f $i) -NoNewline
   Start-Sleep -Seconds 1

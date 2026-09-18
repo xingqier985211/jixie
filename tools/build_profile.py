@@ -178,7 +178,7 @@ def main():
     # ---------------------- 学习路线 ----------------------
     section('入门阶段的学习路线')
     for i, (t, body) in enumerate(JOURNEY):
-        d.ops.append('q 0.145 0.388 0.921 rg %.2f %.2f 3.6 3.6 re f Q' % (left + 1.6, d.y + 3.4))
+        d.rect(left + 1.6, d.y + 3.4, 3.6, 3.6, color=(0.145, 0.388, 0.921))
         if i < len(JOURNEY) - 1:
             d.line(left + 3.4, d.y + 1.6, left + 3.4, d.y - 13.0, color=(0.80, 0.84, 0.90), w=0.8)
         d.text(t + '：', size=S_BODY, font='B', color=(0.118, 0.227, 0.541), x=left + 14, line_gap=1.1)
