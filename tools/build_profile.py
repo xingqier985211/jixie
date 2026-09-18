@@ -152,18 +152,19 @@ def main():
         d.text(para, size=S_BODY, font='R', color=(0.20, 0.24, 0.30), line_gap=LH_BODY)
         d.y -= GAP_BLOCK
 
-    d.y -= 2
-    report.append(('quote', lines_of(QUOTE, x=left + 14), round(d.y, 1)))
-    first_base, last_base, _ = d.text(QUOTE, size=S_BODY, font='R',
-                                      color=(0.118, 0.227, 0.541), line_gap=LH_BODY, x=left + 14)
-    # 框的上下边由文字的实际基线算出：上留 0.55em、下留 0.30em（含降部余量）
-    pad_top = S_BODY * 0.55
-    pad_bottom = S_BODY * 0.30
+    d.y -= 6
+    report.append(('quote', lines_of(QUOTE, x=left + 18), round(d.y, 1)))
+    first_base, last_base, next_y = d.text(QUOTE, size=S_BODY, font='R',
+                                           color=(0.118, 0.227, 0.541), line_gap=LH_BODY, x=left + 18)
+    # 引用块：左侧竖条 + 淡底，上下边由文字实际基线加宽内边距算出（不靠估算）
+    pad_top = S_BODY * 0.80
+    pad_bottom = S_BODY * 0.55
     box_bottom = last_base - pad_bottom
     box_h = (first_base + pad_top) - box_bottom
-    d.rect(left, box_bottom, width, box_h, color=(0.937, 0.965, 1.0))
-    d.rect(left, box_bottom, 3.0, box_h, color=(0.145, 0.388, 0.921))
+    d.rect(left, box_bottom, width, box_h, color=(0.949, 0.969, 0.996))
+    d.rect(left, box_bottom, 3.5, box_h, color=(0.145, 0.388, 0.921))
     report.append(('quote box', round(box_h, 1), round(box_bottom, 1)))
+    d.y = min(next_y, box_bottom) - 8   # 框下方再留 8pt，避免和下一节贴太近
 
     # ---------------------- 兴趣与性格 ----------------------
     section('兴趣与性格')
