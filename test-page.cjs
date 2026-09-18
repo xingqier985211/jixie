@@ -40,7 +40,17 @@ function makeEl(tag, doc) {
     getAttribute(k) { return (this._attrs || {})[k] !== undefined ? this._attrs[k] : null; },
     addEventListener(t, fn) { (this._ev = this._ev || {})[t] = (this._ev[t] || []).concat(fn); },
     dispatch(t, ev) { ((this._ev || {})[t] || []).forEach(fn => fn(ev)); },
-    querySelector() { return null; }
+    closest(sel) {
+      const cls = String(sel).replace(/^\./, '');
+      let n = this;
+      while (n) { if (n.classList && n.classList.contains(cls)) return n; n = n.parentNode; }
+      return null;
+    },
+    querySelector() { return null; },
+    querySelectorAll(sel) {
+      const cls = String(sel).replace(/^\./, '');
+      return this.children.filter(c => c.classList.contains(cls));
+    }
   };
   el.classList = {
     add: (...cs) => cs.forEach(c => el._cls.add(c)),
@@ -49,6 +59,8 @@ function makeEl(tag, doc) {
     toggle: c => el._cls.has(c) ? el._cls.delete(c) : el._cls.add(c)
   };
   Object.defineProperty(el, 'offsetWidth', { get: () => 100 });
+  // 棋盘的内容宽度：由测试注入（模拟不同屏幕宽度）
+  Object.defineProperty(el, 'clientWidth', { get: () => (el._clientWidth !== undefined ? el._clientWidth : 100) });
   return el;
 }
 
@@ -98,6 +110,7 @@ try {
 }
 console.log('✅ 页面脚本初始化无异常');
 
+sandbox.__DBG_LAYOUT = !!process.env.DBG;
 const G = sandbox.Game2048;
 const board = doc.getElementById('board');
 
@@ -113,6 +126,95 @@ console.log(`✅ 手动移动 4 次：得分=${scoreAfter}，棋盘上最大方�
 
 press('u'); // 撤销
 console.log(`✅ 撤销可用：撤销后得分=${doc.getElementById('score').textContent}`);
+
+/* --------------------- 1.5) 方块定位/对齐验证 --------------------- *
+ * 独立算一遍期望坐标，再和页面脚本真正写进 transform 的值对照。
+ * 覆盖窄屏和宽屏两种尺寸，确认格子边长与坐标随棋盘宽度正确缩放。
+ * （这个检查是针对真实出现过的 bug：calc+变量算不出位置，方块全堆在左上角。）
+ * ------------------------------------------------------------------ */
+const GAP = 12;   // 必须与页面里的 --gap / GAP 一致
+function checkLayout(width) {
+  board._clientWidth = width;
+  press('r');   // 新一局，触发重新测量与重绘
+  press('ArrowLeft'); press('ArrowDown');   // 产生几个不同位置的方块
+
+  const expectedCell = (width - 5 * GAP) / 4;
+  const problems = [];
+
+  // 1) 背景格：用 left/top 摆放，必须正好 16 个并覆盖全部位置
+  const bgCells = board.children.filter(c => c.classList.contains('bg-cell'));
+  if (bgCells.length !== 16) problems.push(`背景格数量是 ${bgCells.length}，应为 16`);
+  const bgSeen = new Set();
+  bgCells.forEach(el => {
+    const x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+    if (isNaN(x) || isNaN(y)) { problems.push('背景格缺少 left/top'); return; }
+    const col = Math.round((x - GAP) / (expectedCell + GAP));
+    const row = Math.round((y - GAP) / (expectedCell + GAP));
+    if (Math.abs(x - (GAP + col * (expectedCell + GAP))) > 0.01 ||
+        Math.abs(y - (GAP + row * (expectedCell + GAP))) > 0.01) {
+      problems.push(`背景格位置 (${x},${y}) 不符合公式`);
+    }
+    if (col < 0 || col > 3 || row < 0 || row > 3) problems.push(`背景格越界：第 ${row} 行第 ${col} 列`);
+    bgSeen.add(row + ',' + col);
+  });
+  if (bgSeen.size !== 16) problems.push(`背景格只覆盖了 ${bgSeen.size} 个位置，应为 16`);
+
+  // 2) 方块：位置在 left/top 上，必须落在格点上且互不重叠
+  const tiles = board.children.filter(c => c.classList.contains('tile'));
+  const seen = new Set();
+  tiles.forEach(el => {
+    const x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+    if (isNaN(x) || isNaN(y)) {
+      problems.push(`方块（数字 ${el.dataset.v}）没有 left/top —— 这正是“方块堆在左上角”的 bug`);
+      return;
+    }
+    const col = Math.round((x - GAP) / (expectedCell + GAP));
+    const row = Math.round((y - GAP) / (expectedCell + GAP));
+    if (Math.abs(x - (GAP + col * (expectedCell + GAP))) > 0.01 ||
+        Math.abs(y - (GAP + row * (expectedCell + GAP))) > 0.01) {
+      problems.push(`方块 ${el.dataset.v} 位置 (${x},${y}) 不在格点上`);
+    }
+    if (col < 0 || col > 3 || row < 0 || row > 3) {
+      problems.push(`方块 ${el.dataset.v} 落到了棋盘外：第 ${row} 行第 ${col} 列`);
+    }
+    // 只有两个“不同元素”真的落在同一像素位置才算重叠（桩里的异步残留不算布局问题）
+    const pixelKey = el.style.left + '|' + el.style.top;
+    if (seen.has(pixelKey)) {
+      problems.push(`两个方块元素重叠在同一位置 ${pixelKey}`);
+    }
+    seen.add(pixelKey);
+    const w = parseFloat(el.style.width);
+    if (Math.abs(w - expectedCell) > 0.01) {
+      problems.push(`方块 ${el.dataset.v} 宽度 ${w} 应为 ${expectedCell.toFixed(2)}`);
+    }
+  });
+
+  // 3) 页面自带的布局自检接口也必须通过
+  const selfCheck = typeof sandbox.layoutProblems === 'function'
+    ? sandbox.layoutProblems()
+    : ['页面里没有 layoutProblems() 自检接口'];
+  problems.push(...selfCheck);
+
+  if (process.env.DBG) {
+    bgCells.slice(0, 4).forEach((c, i) => console.log(`   [DBG] bg#${i}`, c.style.left, c.style.top, c.style.width));
+    tiles.forEach(t => console.log('   [DBG] tile', t.dataset.v, t.style.left, t.style.top, t.style.width));
+  }
+  const first = bgCells[0];
+  console.log(`   棋盘内容宽度 ${width}px -> 格子边长应为 ${expectedCell.toFixed(2)}px，` +
+              `实际 ${first && first.style.width ? first.style.width : '(未设置)'}，` +
+              `背景格 ${bgCells.length} 个、方块 ${tiles.length} 个`);
+  return problems;
+}
+
+console.log('✅ 手动移动与撤销正常，开始校验方块定位：');
+let layoutProblems = [];
+[340, 480, 720].forEach(width => { layoutProblems = layoutProblems.concat(checkLayout(width)); });
+if (layoutProblems.length) {
+  console.log('❌ 方块定位校验失败：');
+  layoutProblems.forEach(p => console.log('   - ' + p));
+  process.exit(1);
+}
+console.log('✅ 方块定位校验通过：三种宽度下坐标都精确落在格子上，无重叠、无越界。');
 
 /* --------------------------- 2) AI 自动演示验证 --------------------------- */
 const ROUNDS = parseInt(process.argv[2] || '3', 10);

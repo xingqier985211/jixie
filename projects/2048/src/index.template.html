@@ -99,18 +99,20 @@ button.icon { min-width: 44px; }
   --gap: 12px; box-shadow: var(--shadow);
 }
 .board .bg-cell {
-  position: absolute; width: calc((100% - 5 * var(--gap)) / 4);
+  position: absolute; left: 0; top: 0;
+  width: calc((100% - 5 * var(--gap)) / 4);   /* 兜底：JS 会覆盖成实测像素 */
   height: calc((100% - 5 * var(--gap)) / 4);
   background: var(--cell); border-radius: 8px;
   transition: background .25s;
 }
 .tile {
-  position: absolute; width: calc((100% - 5 * var(--gap)) / 4);
+  position: absolute; left: 0; top: 0;
+  width: calc((100% - 5 * var(--gap)) / 4);   /* 兜底：JS 会覆盖成实测像素 */
   height: calc((100% - 5 * var(--gap)) / 4);
   border-radius: 8px; display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 30px; z-index: 2;
-  transition: transform .11s ease-in-out, background .25s, color .25s;
-  will-change: transform;
+  /* 位置用 left/top 像素定位，滑动动画由 Web Animations 负责，所以这里不写 transform */
+  transition: background .25s, color .25s;
 }
 .tile.new { z-index: 3; }
 .tile.pop { animation: pop .16s ease-out; }
@@ -314,36 +316,157 @@ kbd {
     save(LS_THEME, t);
   }
 
-  /* ------------------------------ 渲染 ------------------------------ */
-  var bgCellsBuilt = false;
+  /* ------------------------------ 渲染 ------------------------------ *
+   * 定位方式（这个是踩过坑改出来的，别改回去）：
+   *   位置 = 行内样式的 left/top 像素值，由 JS 用纯数值算出：
+   *       格子边长 cell = (棋盘内容宽度 - 5*GAP) / 4
+   *       第 i 格坐标  = GAP + col * (cell + GAP), GAP + row * (cell + GAP)
+   *   滑动动画 = Web Animations 的 transform 偏移（只做动画，不承担定位）。
+   *
+   * 为什么不用 `transform: translate(calc(var(--gap) + N * (...)))` 定位：
+   *   那种“百分比 + CSS 变量”的 calc 一旦解析失败，整条 transform 会被丢弃，
+   *   而方块又只有 transform、没有 left/top，于是**全部堆在棋盘左上角**。
+   *   改成 left/top 之后，位置不依赖 calc、也不依赖 transform 是否生效，
+   *   任何浏览器都能对齐；动画与定位分离，互不影响。
+   * ------------------------------------------------------------------ */
+  var GAP = 12;              // 必须与 CSS 里的 --gap 一致
+  var bgCells = [];
+  var boardInner = 0;        // 棋盘内容区宽度（去掉 padding）
+  var cellPos = [];          // 每个格子的像素坐标 [{x, y}]
+  var cellSize = 0;
+
   function buildBgCells() {
-    var gap = 12;
     for (var i = 0; i < SIZE * SIZE; i++) {
       var d = document.createElement('div');
       d.className = 'bg-cell';
-      var r = Math.floor(i / SIZE), c = i % SIZE;
-      d.style.left = 'calc(var(--gap) + ' + c + ' * ((100% - 5 * var(--gap)) / 4 + var(--gap)))';
-      d.style.top = 'calc(var(--gap) + ' + r + ' * ((100% - 5 * var(--gap)) / 4 + var(--gap)))';
+      d.dataset.i = i;
       boardEl.insertBefore(d, overlay);
+      bgCells.push(d);
     }
-    bgCellsBuilt = true;
   }
 
   var tiles = {}; // 方块元素池：key = 方块 id
   var nextId = 1;
+  // 世代号：新局/撤销时 +1，让上一局还没执行的延迟任务（生成方块、更新数字）自动作废，
+  // 否则快速操作时会出现“幽灵方块”或旧数字残留在新棋盘上。
+  var gen = 0;
+  function after(ms, fn) {
+    var g = gen;
+    setTimeout(function () { if (g === gen) fn(); }, ms);
+  }
   var cellOwner = new Array(SIZE * SIZE).fill(0); // 每个格子由哪个方块占据
 
-  function tilePos(i) {
-    var r = Math.floor(i / SIZE), c = i % SIZE;
-    return 'translate(calc(var(--gap) + ' + c + ' * ((100% - 5 * var(--gap)) / 4 + var(--gap))), ' +
-           'calc(var(--gap) + ' + r + ' * ((100% - 5 * var(--gap)) / 4 + var(--gap))))';
+  // 算出棋盘内容宽度：优先用真实布局，量不到就退回 getComputedStyle
+  function measureBoard() {
+    var w = boardEl.clientWidth;
+    if (!w && typeof getComputedStyle === 'function') {
+      var cs = getComputedStyle(boardEl);
+      if (cs && cs.width) w = parseFloat(cs.width) || 0;
+      if (cs && cs.paddingLeft) w -= parseFloat(cs.paddingLeft) || 0;
+      if (cs && cs.paddingRight) w -= parseFloat(cs.paddingRight) || 0;
+    }
+    if (w > 0) {
+      boardInner = w;
+      cellSize = (w - (SIZE + 1) * GAP) / SIZE;
+      cellPos = [];
+      for (var i = 0; i < SIZE * SIZE; i++) {
+        var r = Math.floor(i / SIZE), c = i % SIZE;
+        cellPos.push({ x: GAP + c * (cellSize + GAP), y: GAP + r * (cellSize + GAP) });
+      }
+    }
+    // 背景格与所有方块统一到同一套像素值（含宽高）
+    for (var k = 0; k < bgCells.length; k++) {
+      placeBgCell(k);
+    }
+    applyCellSize();
+    // 棋盘尺寸变了就把方块重新摆一遍（否则会出现旧位置/旧尺寸的残留）
+    if (cellSize > 0) {
+      var idAt = {};
+      for (var j = 0; j < cellOwner.length; j++) {
+        if (cellOwner[j]) idAt[cellOwner[j]] = j;
+      }
+      Object.keys(tiles).forEach(function (id) {
+        var idx = idAt[id];
+        if (idx !== undefined) placeTile(tiles[id], idx);
+      });
+    }
   }
 
-  // 全量重绘（新局 / 撤销后使用）
+  // 每次下棋/渲染前都确保几何是最新的（窗口缩放、横竖屏切换都靠它兜住）
+  function ensureLayout() {
+    measureBoard();
+  }
+
+  function placeBgCell(k) {
+    var p = cellPos[k];
+    if (!p) return;
+    var el = bgCells[k];
+    el.style.left = p.x.toFixed(2) + 'px';
+    el.style.top = p.y.toFixed(2) + 'px';
+  }
+
+  function applyCellSize() {
+    if (!cellSize) return;
+    var px = cellSize.toFixed(2) + 'px';
+    for (var k = 0; k < bgCells.length; k++) {
+      bgCells[k].style.width = px;
+      bgCells[k].style.height = px;
+    }
+    Object.keys(tiles).forEach(function (id) {
+      tiles[id].style.width = px;
+      tiles[id].style.height = px;
+    });
+  }
+
+  // 把某个方块摆到第 i 格（定位只关心 left/top，动画另算）
+  function placeTile(el, i) {
+    var p = cellPos[i];
+    if (!p) return false;
+    el.style.left = p.x.toFixed(2) + 'px';
+    el.style.top = p.y.toFixed(2) + 'px';
+    if (cellSize) {
+      el.style.width = cellSize.toFixed(2) + 'px';
+      el.style.height = cellSize.toFixed(2) + 'px';
+    }
+    return true;
+  }
+
+  // 滑动动画：从「旧格 - 新格」的位移滑到 0（transform 只做动画，不参与定位）
+  function slideAnim(el, fromIdx, toIdx) {
+    if (fromIdx === toIdx) return;
+    var a = cellPos[fromIdx], b = cellPos[toIdx];
+    if (!a || !b) return;
+    var dx = a.x - b.x, dy = a.y - b.y;
+    if (typeof el.animate !== 'function') return;   // 老浏览器：没动画但位置一定对
+    try {
+      el.animate(
+        [{ transform: 'translate(' + dx.toFixed(2) + 'px,' + dy.toFixed(2) + 'px)' },
+         { transform: 'translate(0,0)' }],
+        { duration: 110, easing: 'ease-out' }
+      );
+    } catch (e) {}
+  }
+
+  // 尺寸变化后：重新算格子 + 把所有方块重新摆一遍（位置以格子为准，绝不保留旧值）
+  function relayout() {
+    ensureLayout();
+  }
+
+  // 全量重绘（新局 / 撤销后使用）：以棋盘数据为唯一依据重建画面。
+  // 这里直接清掉 DOM 里所有 .tile 元素，而不是只删 tiles 这个 map 里的 ——
+  // 否则 map 一旦和真实 DOM 不同步（异步动画、快速连按都会造成），
+  // 就会留下“幽灵方块”叠在新棋盘上。
   function renderAll() {
-    Object.keys(tiles).forEach(function (k) { tiles[k].remove(); });
+    var stale = boardEl.querySelectorAll ? boardEl.querySelectorAll('.tile') : [];
+    for (var s = 0; s < stale.length; s++) {
+      if (stale[s].remove) stale[s].remove();
+    }
+    Object.keys(tiles).forEach(function (k) {
+      if (tiles[k] && tiles[k].parentNode) tiles[k].remove();
+    });
     tiles = {};
     cellOwner = new Array(SIZE * SIZE).fill(0);
+    ensureLayout();
     for (var i = 0; i < SIZE * SIZE; i++) {
       if (state.board[i]) addTile(i, state.board[i], false);
     }
@@ -351,11 +474,15 @@ kbd {
   }
 
   function addTile(idx, value, isNew) {
+    // 硬性防重：一个格子只允许一个方块元素。
+    // 延迟生成的新方块如果晚于“新局/撤销”触发，这里会直接拒绝，避免叠加出幽灵方块。
+    if (cellOwner[idx]) return 0;
     var el = document.createElement('div');
     el.className = 'tile' + (isNew ? ' new pop' : '');
     el.dataset.v = value;
     el.textContent = value;
-    el.style.transform = tilePos(idx);
+    if (!cellPos.length || !cellSize) ensureLayout();
+    placeTile(el, idx);
     boardEl.appendChild(el);
     var id = nextId++;
     tiles[id] = el;
@@ -389,15 +516,18 @@ kbd {
   }
   function hideOverlay() { overlay.classList.remove('show'); }
 
-  /* --------------------------- 一步移动动画 --------------------------- *
-   * 思路：先移动棋盘数据，再按“旧方块去了哪里”更新每张牌的 transform，
-   * 让 CSS transition 自己补出滑动效果；新生成的方块单独加 pop 动画。
-   * ------------------------------------------------------------------ */
+  /* --------------------------- 一步移动 --------------------------- *
+   * 思路：先把数据算完（棋盘、分数、步数），再让画面追上数据：
+   *   旧方块一律先摆到它的目标格（left/top），再用 Web Animations 从旧位置滑过来；
+   *   被合并掉的那张滑到同一格后删除；新方块最后 pop 出现。
+   * 位置与动画分离的好处：即使浏览器不支持动画，位置也一定是对的。
+   * ---------------------------------------------------------------- */
   function applyMove(dir, opts) {
     opts = opts || {};
     var silent = !!opts.silent;
     var animate = opts.animate !== false;
     if (state.over) return false;
+    ensureLayout();   // 保证几何是最新的，再谈位置
 
     // 1) 先算数据结果；不动就不算一步
     var before = state.board.slice();
@@ -407,7 +537,7 @@ kbd {
     var ownerBefore = cellOwner.slice();
     var mapping = G.traceMove(before, dir); // 目标格 -> [来源格, ...]
 
-    // 2) 更新数据状态（先把状态算好，动画只是“补画面”）
+    // 2) 更新数据状态
     state.history_stack.push({ board: before, score: state.score, moves: state.moves });
     if (state.history_stack.length > 30) state.history_stack.shift();
     state.board = res.board;
@@ -418,7 +548,7 @@ kbd {
     var newIdx = G.spawn(state.board);   // 新方块的位置
     if (res.gained > 0 && !silent) beep(520 + Math.min(res.gained, 400), 60);
 
-    // 3) 画面上让旧方块滑到新位置；合并掉的那张滑到同一格后消失
+    // 3) 画面上让旧方块移到新位置
     Object.keys(mapping).forEach(function (destKey) {
       var dest = Number(destKey);
       var froms = mapping[destKey];
@@ -426,17 +556,29 @@ kbd {
         var id = ownerBefore[froms[i]];
         var el = tiles[id];
         if (!el) continue;
-        if (!animate) { el.remove(); delete tiles[id]; continue; }
-        el.style.transform = tilePos(dest);
         el.classList.remove('new', 'pop');
+
         if (i === 0) {
-          if (state.board[dest] !== before[froms[i]]) {
-            (function (id2, v2) { setTimeout(function () { setTileValue(id2, v2); }, 100); })(id, state.board[dest]);
+          // 留下的那张：先在旧位置滑到新位置，再把 left/top 落定
+          var from = froms[i];
+          if (animate) {
+            placeTile(el, from);           // 起点
+            slideAnim(el, from, dest);     // 滑到终点（transform 偏移，不影响 left/top）
+          }
+          placeTile(el, dest);
+          if (state.board[dest] !== before[from]) {
+            (function (id2, v2) { after(100, function () { setTileValue(id2, v2); }); })(id, state.board[dest]);
           }
           cellOwner[dest] = id;
         } else {
-          el.style.zIndex = 1;
-          (function (e) { setTimeout(function () { e.remove(); }, 105); })(el);
+          // 被合并掉的那张：滑过去后删除
+          if (animate) {
+            placeTile(el, dest);
+            el.style.zIndex = 1;
+            (function (e) { after(110, function () { e.remove(); }); })(el);
+          } else {
+            el.remove();
+          }
           delete tiles[id];
         }
       }
@@ -445,13 +587,16 @@ kbd {
     // 4) 新方块：动画模式下延迟一点出现，让“先滑后生”的顺序看得清
     if (newIdx >= 0) {
       if (animate) {
-        (function (idx2) { setTimeout(function () { if (!cellOwner[idx2]) addTile(idx2, state.board[idx2], true); }, 100); })(newIdx);
+        (function (idx2) { after(100, function () { if (!cellOwner[idx2] && state.board[idx2]) { ensureLayout(); addTile(idx2, state.board[idx2], true); } }); })(newIdx);
       } else {
         addTile(newIdx, state.board[newIdx], true);
       }
     }
 
-    // 5) 分数、最高分
+    // 5) 按数据纠偏一次，保证画面与棋盘严格一致
+    reconcile();
+
+    // 6) 分数、最高分
     if (state.score > state.best) { state.best = state.score; save(LS_BEST, state.best); }
     updateHud();
 
@@ -461,7 +606,7 @@ kbd {
       state.won = true;
       beep(880, 150);
       if (!silent && animate) showOverlay('🎉 达成 2048！', '得分 ' + state.score + '，还可以继续挑战更大的方块', '继续玩');
-      if (state.aiOn && animate) setTimeout(hideOverlay, 1200);
+      if (state.aiOn && animate) after(1200, hideOverlay);
     } else if (!G.canMove(state.board)) {
       state.over = true;
       stopAI();
@@ -470,6 +615,54 @@ kbd {
     }
     return true;
   }
+
+  /* 按棋盘数据纠偏重排：每个方块都重新落到它该在的格子，清掉不该存在的方块。
+   * 这是最后一道保险 —— 即使前面某个异步环节出了偏差，调用一次就回到正确画面。 */
+  function reconcile() {
+    ensureLayout();
+    var idAt = {};
+    for (var i = 0; i < cellOwner.length; i++) {
+      if (cellOwner[i]) idAt[cellOwner[i]] = i;
+    }
+    Object.keys(tiles).forEach(function (id) {
+      var el = tiles[id];
+      if (!el) return;
+      var idx = idAt[id];
+      if (idx === undefined) {
+        // 不在任何格子里 = 已经不该存在（被合并或已过期）
+        if (el.parentNode) el.remove();
+        delete tiles[id];
+        return;
+      }
+      placeTile(el, idx);
+    });
+  }
+
+  /* 布局自检：返回所有方块与格子的对不齐情况（供测试脚本与排障使用，只读） */
+  window.layoutProblems = function () {
+    var problems = [];
+    if (!cellPos.length) { problems.push('还没有测量棋盘尺寸'); return problems; }
+    var idAt = {};
+    for (var i = 0; i < cellOwner.length; i++) if (cellOwner[i]) idAt[cellOwner[i]] = i;
+    var occupied = {};
+    Object.keys(tiles).forEach(function (id) {
+      var idx = idAt[id];
+      if (idx === undefined) { problems.push('方块 ' + id + ' 不在任何格子里'); return; }
+      if (occupied[idx]) problems.push('第 ' + idx + ' 格有两个方块');
+      occupied[idx] = true;
+      var el = tiles[id];
+      var x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+      var exp = cellPos[idx];
+      if (isNaN(x) || isNaN(y)) { problems.push('方块 ' + id + ' 没有 left/top'); return; }
+      if (Math.abs(x - exp.x) > 0.01 || Math.abs(y - exp.y) > 0.01) {
+        problems.push('方块 ' + id + ' 位置(' + x + ',' + y + ') 与第 ' + idx + ' 格(' +
+                      exp.x.toFixed(2) + ',' + exp.y.toFixed(2) + ') 不符');
+      }
+      var w = parseFloat(el.style.width);
+      if (Math.abs(w - cellSize) > 0.01) problems.push('方块 ' + id + ' 宽度 ' + w + ' 与格子 ' + cellSize.toFixed(2) + ' 不符');
+    });
+    return problems;
+  };
 
   /* ------------------------- 多局战绩 & 统计 ------------------------- */
   function finishGame() {
@@ -516,6 +709,7 @@ kbd {
   /* ------------------------------ 新局 ------------------------------ */
   function newGame() {
     stopAI();
+    gen++;
     state.board = G.newGame();
     state.score = 0;
     state.moves = 0;
@@ -530,6 +724,7 @@ kbd {
   /* ------------------------------ 撤销 ------------------------------ */
   function undo() {
     if (!state.history_stack.length) return;
+    gen++;
     var snap = state.history_stack.pop();
     state.board = snap.board;
     state.score = snap.score;
@@ -671,6 +866,16 @@ kbd {
   applyTheme(loadJSON(LS_THEME, null) || 'light');
   renderHistory();
   newGame();
+
+  // 尺寸变化时重新量格子：手机横竖屏切换、窗口缩放、字体加载完都会触发
+  if (window.ResizeObserver) {
+    try { new ResizeObserver(function () { relayout(); }).observe(boardEl); } catch (e) {}
+  }
+  window.addEventListener('resize', function () { setTimeout(relayout, 60); });
+  window.addEventListener('orientationchange', function () { setTimeout(relayout, 220); });
+  window.addEventListener('load', function () { relayout(); });
+  // 兜底：字体/布局稳定后再量一次
+  setTimeout(relayout, 300);
 })();
 </script>
 </body>
