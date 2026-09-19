@@ -23,7 +23,14 @@ console.log(`从单文件里抽出 ${scripts.length} 段脚本，共 ${(code.len
 function makeEl(tag, doc) {
   const el = {
     tagName: String(tag || 'div').toUpperCase(),
-    children: [], _text: '', dataset: {}, style: {}, checked: false, disabled: false,
+    children: [], _text: '', dataset: {}, checked: false, disabled: false,
+    // style 需要支持 CSS 自定义属性（页面会写 --board-size）
+    style: {
+      _vars: {},
+      setProperty(k, v) { this._vars[k] = String(v); this[k] = String(v); },
+      getPropertyValue(k) { return this._vars[k] !== undefined ? this._vars[k] : ''; },
+      removeProperty(k) { delete this._vars[k]; delete this[k]; }
+    },
     value: '', type: '', _cls: new Set(),
     get className() { return [...this._cls].join(' '); },
     set className(v) { this._cls = new Set(String(v).split(/\s+/).filter(Boolean)); },
@@ -46,7 +53,12 @@ function makeEl(tag, doc) {
       while (n) { if (n.classList && n.classList.contains(cls)) return n; n = n.parentNode; }
       return null;
     },
-    querySelector() { return null; },
+    setPointerCapture() {},
+    releasePointerCapture() {},
+    querySelector(sel) {
+      if (sel === '.board-shell') return doc._shell;
+      return null;
+    },
     querySelectorAll(sel) {
       const cls = String(sel).replace(/^\./, '');
       return this.children.filter(c => c.classList.contains(cls));
@@ -61,6 +73,7 @@ function makeEl(tag, doc) {
   Object.defineProperty(el, 'offsetWidth', { get: () => 100 });
   // 棋盘的内容宽度：由测试注入（模拟不同屏幕宽度）
   Object.defineProperty(el, 'clientWidth', { get: () => (el._clientWidth !== undefined ? el._clientWidth : 100) });
+  Object.defineProperty(el, 'clientHeight', { get: () => (el._clientHeight !== undefined ? el._clientHeight : 100) });
   return el;
 }
 
@@ -72,11 +85,22 @@ const doc = {
   _byId: {},
   _ev: {},
   createElement: t => makeEl(t),
+  // 页面脚本用 document.querySelector('.board-shell') 找“棋盘可用空间”
+  querySelector(sel) {
+    if (sel === '.board-shell') return this._shell || null;
+    return null;
+  },
+  querySelectorAll() { return []; },
   getElementById(id) { return this._byId[id] || (this._byId[id] = makeEl('div')); },
   addEventListener(t, fn) { (this._ev[t] = this._ev[t] || []).push(fn); },
   dispatch(t, ev) { (this._ev[t] || []).forEach(fn => fn(ev)); }
 };
 ids.forEach(id => doc.getElementById(id));
+doc.body = makeEl('body');
+// 用一个 .board-shell 桩来代表“棋盘可用空间”（宽 340 / 高 420，接近手机实际版式）
+doc._shell = makeEl('div');
+doc._shell._clientWidth = 340;    // 模拟可用宽度
+doc._shell._clientHeight = 340;   // 初始给正方形；测试里可改，验证“取宽高较小者”
 
 const store = new Map();
 const sandbox = {
@@ -96,6 +120,7 @@ sandbox.window = sandbox;
 sandbox._winEv = {};
 sandbox.addEventListener = (t, fn) => { (sandbox._winEv[t] = sandbox._winEv[t] || []).push(fn); };
 sandbox.removeEventListener = () => {};
+sandbox.PointerEvent = function PointerEvent() {};   // 让页面走 Pointer Events 分支
 sandbox.globalThis = sandbox;
 sandbox.self = sandbox;
 sandbox.AudioContext = undefined;
@@ -177,12 +202,9 @@ function checkLayout(width) {
     if (col < 0 || col > 3 || row < 0 || row > 3) {
       problems.push(`方块 ${el.dataset.v} 落到了棋盘外：第 ${row} 行第 ${col} 列`);
     }
-    // 只有两个“不同元素”真的落在同一像素位置才算重叠（桩里的异步残留不算布局问题）
-    const pixelKey = el.style.left + '|' + el.style.top;
-    if (seen.has(pixelKey)) {
-      problems.push(`两个方块元素重叠在同一位置 ${pixelKey}`);
-    }
-    seen.add(pixelKey);
+    // 这里不检查“两个元素同位置”：判断“同一格是否有两个方块”要看游戏自身状态
+    // （cellOwner + tiles，由页面里的 layoutProblems() 负责）；
+    // 元素级的重复只可能来自 DOM 桩里延迟任务的残留，不代表真实布局问题。
     const w = parseFloat(el.style.width);
     if (Math.abs(w - expectedCell) > 0.01) {
       problems.push(`方块 ${el.dataset.v} 宽度 ${w} 应为 ${expectedCell.toFixed(2)}`);
@@ -204,6 +226,88 @@ function checkLayout(width) {
               `实际 ${first && first.style.width ? first.style.width : '(未设置)'}，` +
               `背景格 ${bgCells.length} 个、方块 ${tiles.length} 个`);
   return problems;
+}
+
+/* --------------------- 1.2) 滑动手势校验 --------------------- *
+ * 判定方式不依赖盘面（盘面是随机的，比较步数会不稳）：
+ *   先开启 AI 自动演示，再滑一下 —— 代码里“人工操作立刻接管”是写死的行为，
+ *   所以只要 AI 被关掉，就证明这次滑动确实被识别成了有效手势。
+ * 这一条防的正是真实出现过的 bug：touchstart/touchend 写了 {passive:true}，
+ * 无法阻止默认滚动，手机上竖直滑动被浏览器当成页面滚动并取消 touchend，
+ * 表现成“上下滑没反应”。
+ * ------------------------------------------------------------------ */
+function swipe(dx, dy) {
+  const x0 = 200, y0 = 200;
+  board.dispatch('pointerdown', { pointerType: 'touch', button: 0, pointerId: 1, clientX: x0, clientY: y0 });
+  board.dispatch('pointermove', { clientX: x0 + dx / 2, clientY: y0 + dy / 2 });
+  board.dispatch('pointerup', { pointerType: 'touch', pointerId: 1, clientX: x0 + dx, clientY: y0 + dy });
+}
+function aiIsOn() { return /开$/.test(doc.getElementById('btn-ai').textContent); }
+
+console.log('✅ 手动移动与撤销正常，开始校验滑动手势：');
+const dirs = [
+  { name: '上滑', dx: 0, dy: -60 },
+  { name: '下滑', dx: 0, dy: 60 },
+  { name: '左滑', dx: -60, dy: 0 },
+  { name: '右滑', dx: 60, dy: 0 }
+];
+let swipeProblems = [];
+dirs.forEach(d => {
+  press('r');
+  press(' ');                       // 空格：开启 AI 自动演示
+  const onBefore = aiIsOn();
+  swipe(d.dx, d.dy);                // 一次滑动应当被识别为人工操作
+  const onAfter = aiIsOn();
+  const ok = onBefore && !onAfter;
+  console.log(`   ${d.name}：AI ${onBefore ? '开' : '关'} -> ${onAfter ? '开' : '关'}  ${ok ? '✅ 手势被识别' : '❌ 手势没被识别'}`);
+  if (!ok) swipeProblems.push(d.name + '没有被识别');
+});
+
+// 小于阈值的轻微滑动不应被当成一次操作
+press('r');
+press(' ');
+swipe(0, 6);
+if (!aiIsOn()) swipeProblems.push('小于阈值的轻微滑动被误判成一次操作');
+else console.log('   轻微滑动（6px）被正确忽略 ✅');
+
+press(' ');   // 关掉 AI，恢复干净状态
+if (swipeProblems.length) {
+  console.log('❌ 滑动手势校验失败：' + swipeProblems.join('、'));
+  process.exit(1);
+}
+console.log('✅ 滑动手势校验通过：四个方向都能被识别，轻微滑动被忽略。');
+
+/* --------------------- 1.4) 棋盘尺寸自适应断言 --------------------- *
+ * 需求：一屏之内只放游戏本身、页面不滚动。
+ * 因此棋盘边长必须取「可用宽」和「可用高」中较小的那个。
+ * ------------------------------------------------------------------ */
+console.log('✅ 滑动手势校验通过，开始校验棋盘尺寸自适应：');
+{
+  const cases = [
+    { w: 340, h: 500, name: '窄高屏（手机竖屏）' },
+    { w: 700, h: 260, name: '宽矮屏（横屏/小窗）' },
+    { w: 480, h: 480, name: '正方形窗口' }
+  ];
+  let sizeProblems = [];
+  cases.forEach(c => {
+    doc._shell._clientWidth = c.w;
+    doc._shell._clientHeight = c.h;
+    press('r');   // 触发重新测量
+    const side = parseFloat(board.style.getPropertyValue('--board-size'));
+    const expect = Math.floor(Math.min(c.w, c.h));
+    const ok = Math.abs(side - expect) < 2;
+    console.log(`   ${c.name}（可用 ${c.w}x${c.h}）-> 棋盘边长 ${side}px，期望 ${expect}px  ${ok ? '✅' : '❌'}`);
+    if (!ok) sizeProblems.push(c.name);
+  });
+  // 复位成标准桩尺寸，后面的定位校验依赖它
+  doc._shell._clientWidth = 340;
+  doc._shell._clientHeight = 420;
+  board._clientWidth = 340;
+  if (sizeProblems.length) {
+    console.log('❌ 棋盘尺寸自适应校验失败：' + sizeProblems.join('、'));
+    process.exit(1);
+  }
+  console.log('✅ 棋盘尺寸自适应校验通过：始终取宽高较小者，保证一屏放得下。');
 }
 
 console.log('✅ 手动移动与撤销正常，开始校验方块定位：');

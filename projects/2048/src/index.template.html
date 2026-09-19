@@ -53,30 +53,41 @@ html[data-theme="dark"] {
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
-  margin: 0; min-height: 100vh; padding: 24px 16px 48px;
+  margin: 0; padding: 12px 14px 8px;
+  /* 一屏锁定：高度就是视口高度，页面本身不滚动（手机上不会和滑动手势抢手指） */
+  height: 100vh; height: 100dvh; overflow: hidden;
+  overscroll-behavior: none;
   font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   background: var(--bg); color: var(--text);
   display: flex; flex-direction: column; align-items: center;
   transition: background .25s, color .25s;
 }
-h1 { font-size: 44px; margin: 0; letter-spacing: 2px; color: var(--title); }
-.sub { font-size: 13px; color: var(--text-dim); margin: 6px 0 0; }
-
-.wrap { width: 100%; max-width: 520px; }
+.wrap {
+  width: 100%; max-width: 480px;
+  height: 100%; min-height: 0;
+  display: flex; flex-direction: column;
+}
+/* 与游戏无关的面板默认收起，点「更多」才展开 —— 让画面只剩游戏本身 */
+.extra { display: none; }
+body.show-extra { overflow-y: auto; }          /* 展开后内容变多，这时才允许滚动 */
+body.show-extra .wrap { height: auto; }
+body.show-extra .extra { display: block; }
+h1 { font-size: 30px; margin: 0; letter-spacing: 2px; color: var(--title); }
+.sub { font-size: 12px; color: var(--text-dim); margin: 4px 0 0; }
 .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
 .scores { display: flex; gap: 8px; }
 .score-box {
   background: var(--board); color: var(--btn-fg); border-radius: 8px;
-  padding: 8px 16px; text-align: center; min-width: 92px;
+  padding: 6px 14px; text-align: center; min-width: 84px;
 }
 .score-box .label { font-size: 11px; letter-spacing: 1px; opacity: .85; display: block; }
-.score-box .value { font-size: 22px; font-weight: 700; }
+.score-box .value { font-size: 20px; font-weight: 700; }
 .score-box.best .value { color: #ffe9a8; }
 
-.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 12px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
 button {
-  font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
-  border: none; border-radius: 8px; padding: 10px 14px;
+  font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  border: none; border-radius: 8px; padding: 8px 12px;
   background: var(--btn-bg); color: var(--btn-fg); transition: transform .08s, filter .15s;
 }
 button:hover { filter: brightness(1.08); }
@@ -87,16 +98,31 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 button.icon { min-width: 44px; }
 
 .status {
-  min-height: 22px; font-size: 13px; color: var(--text-dim);
-  display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px;
+  min-height: 18px; font-size: 12.5px; color: var(--text-dim);
+  display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px;
 }
 .status b { color: var(--text); }
 
-.board-shell { position: relative; }
+.board-shell {
+  position: relative; flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+}
 .board {
-  position: relative; width: 100%; aspect-ratio: 1 / 1;
+  position: relative;
+  /* 关键：宽度取「容器宽度」和「容器高度」中较小的那个，保证一屏放得下且是正方形。
+     --board-size 由 JS 在测量时写入实测像素值，作为兜底。 */
+  width: min(100%, var(--board-size, 100%));
+  height: min(100%, var(--board-size, 100%));
+  aspect-ratio: 1 / 1;
   background: var(--board); border-radius: 12px; padding: var(--gap);
   --gap: 12px; box-shadow: var(--shadow);
+  /* 关键：这块区域的手势全部交给页面脚本处理。
+     不加这一条，手机上上下滑动会被浏览器当成页面滚动，
+     滑动事件会被取消（touchcancel），表现就是“上下滑没反应”，
+     而且页面会跟着一起滚，手感很差。 */
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
 }
 .board .bg-cell {
   position: absolute; left: 0; top: 0;
@@ -144,7 +170,7 @@ button.icon { min-width: 44px; }
 .overlay .small { font-size: 14px; color: var(--text-dim); }
 
 .panel {
-  margin-top: 18px; background: var(--bg-2); border: 1px solid var(--line);
+  margin-top: 12px; background: var(--bg-2); border: 1px solid var(--line);
   border-radius: 12px; padding: 14px 16px;
 }
 .panel h2 { font-size: 15px; margin: 0 0 10px; color: var(--title); }
@@ -158,7 +184,7 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 11px; background: var(--cell); color: var(--text); }
 .badge.win { background: var(--accent-2); color: #4a3c00; }
 .empty-tip { font-size: 12.5px; color: var(--text-dim); }
-details { margin-top: 12px; font-size: 12.5px; color: var(--text-dim); }
+details { margin-top: 10px; font-size: 12.5px; color: var(--text-dim); }
 details summary { cursor: pointer; color: var(--text); font-weight: 600; }
 kbd {
   background: var(--cell); border-radius: 4px; padding: 1px 6px;
@@ -189,9 +215,8 @@ kbd {
   <div class="toolbar">
     <button id="btn-new">新一局</button>
     <button id="btn-undo" class="ghost">撤销</button>
-    <button id="btn-reset" class="ghost">重置记录</button>
-    <button id="btn-theme" class="ghost" title="切换深色 / 浅色主题">🌙 深色</button>
     <button id="btn-ai" class="on">AI 自动演示：关</button>
+    <button id="btn-extra" class="ghost" title="展开/收起战绩、说明等附加内容">更多 ▾</button>
   </div>
 
   <div class="status">
@@ -209,15 +234,24 @@ kbd {
     </div>
   </div>
 
-  <div class="speed" style="margin-top:12px">
-    <span>AI 速度</span>
-    <input type="range" id="speed" min="0" max="120" step="10" value="40">
-    <span id="speed-label">40ms/步</span>
-    <span style="font-size:12px">(拉到 0 即“瞬时模式”，最快)</span>
-    <label style="margin-left:auto"><input type="checkbox" id="silent"> 关闭音效</label>
+  <!-- ↓↓↓ 以下都是「更多」里的附加内容：默认收起，让画面只剩游戏本身 ↓↓↓ -->
+
+  <div class="extra">
+    <div class="speed" style="margin-top:10px">
+      <span>AI 速度</span>
+      <input type="range" id="speed" min="0" max="120" step="10" value="40">
+      <span id="speed-label">40ms/步</span>
+      <label style="margin-left:auto"><input type="checkbox" id="silent"> 关闭音效</label>
+    </div>
   </div>
 
-  <div class="panel">
+  <div class="toolbar extra" style="margin-top:8px">
+    <button id="btn-reset" class="ghost">重置记录</button>
+    <button id="btn-theme" class="ghost" title="切换深色 / 浅色主题">🌙 深色</button>
+    <span style="font-size:12px;color:var(--text-dim);align-self:center">速度拉到 0 即“瞬时模式”，最快</span>
+  </div>
+
+  <div class="panel extra">
     <h2>多局战绩（最近 10 局，自动追加）</h2>
     <div class="kv" style="margin-bottom:10px">
       <div>总局数<b id="st-games">0</b></div>
@@ -228,11 +262,11 @@ kbd {
     <div id="history-box"><p class="empty-tip">还没有战绩，先玩一局吧。</p></div>
   </div>
 
-  <details>
+  <details class="extra">
     <summary>操作说明 / 本次实现了哪些加分功能</summary>
     <p>
       <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动；
-      手机可直接在棋盘上滑动。<kbd>U</kbd> 撤销，<kbd>R</kbd> 新一局，<kbd>空格</kbd> 开关 AI 自动演示。
+      手机在棋盘上滑动即可（四个方向都支持），电脑也可以按住鼠标拖动。<kbd>U</kbd> 撤销，<kbd>R</kbd> 新一局，<kbd>空格</kbd> 开关 AI 自动演示。
     </p>
     <p>
       胜负判定：任意方块合到 <b>2048</b> 即算赢（AI 目标先合出 <b>1024</b>，再冲刺 2048）；棋盘填满且四个方向都动不了则失败。
@@ -243,7 +277,7 @@ kbd {
     </p>
   </details>
 
-  <p class="sub" style="margin-top:18px">纯前端单文件 · 无框架依赖 · 双击即可打开</p>
+  <p class="sub extra" style="margin-top:14px">纯前端单文件 · 无框架依赖 · 双击即可打开</p>
 </div>
 
 <script>
@@ -257,6 +291,7 @@ kbd {
   var SIZE = G.SIZE;
 
   var boardEl = document.getElementById('board');
+  var shellEl = document.querySelector ? document.querySelector('.board-shell') : null;
   var overlay = document.getElementById('overlay');
   var ovTitle = document.getElementById('ov-title');
   var ovSub = document.getElementById('ov-sub');
@@ -271,6 +306,7 @@ kbd {
   var LS_HISTORY = '2048.history';
   var LS_STATS = '2048.stats';
   var LS_SILENT = '2048.silent';
+  var LS_EXTRA = '2048.extra';
 
   /* ------------------------------ 状态 ------------------------------ */
   var state = {
@@ -356,8 +392,20 @@ kbd {
   }
   var cellOwner = new Array(SIZE * SIZE).fill(0); // 每个格子由哪个方块占据
 
+  // 先决定棋盘该多大：取「外壳可用宽」和「外壳可用高」里较小的那个，
+  // 这样一屏必定放得下、而且始终是正方形。
+  function sizeBoard() {
+    if (!shellEl || !shellEl.clientHeight) return;
+    var availW = shellEl.clientWidth;
+    var availH = shellEl.clientHeight;
+    if (!availW || !availH) return;
+    var side = Math.floor(Math.min(availW, availH));
+    if (side > 60) boardEl.style.setProperty('--board-size', side + 'px');
+  }
+
   // 算出棋盘内容宽度：优先用真实布局，量不到就退回 getComputedStyle
   function measureBoard() {
+    sizeBoard();
     var w = boardEl.clientWidth;
     if (!w && typeof getComputedStyle === 'function') {
       var cs = getComputedStyle(boardEl);
@@ -797,35 +845,103 @@ kbd {
     applyMove(dir, { silent: false });
   });
 
-  // 触屏滑动
-  var touch = null;
-  boardEl.addEventListener('touchstart', function (e) {
-    if (e.touches.length !== 1) return;
-    touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, { passive: true });
-  boardEl.addEventListener('touchend', function (e) {
-    if (!touch) return;
-    var t = e.changedTouches[0];
-    var dx = t.clientX - touch.x, dy = t.clientY - touch.y;
-    touch = null;
-    if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
-    if (state.aiOn) stopAI();
-    if (Math.abs(dx) > Math.abs(dy)) applyMove(dx > 0 ? 'right' : 'left', {});
-    else applyMove(dy > 0 ? 'down' : 'up', {});
-  }, { passive: true });
+  /* ------------------------- 滑动操作（触屏 / 鼠标） ------------------------- *
+   * 为什么用 Pointer Events 而不是 touchstart/touchend：
+   *   1) touch 监听为了不阻塞滚动通常要写 { passive: true }，那样就**无法 preventDefault**，
+   *      上下滑动时页面会跟着滚；
+   *   2) 更糟的是：手指一竖划，浏览器会判定“这是页面滚动”，直接把 touchend **取消掉**
+   *      （触发 touchcancel），于是方向判断根本不会执行 —— 表现就是“上下滑没反应”。
+   * Pointer Events 配合 CSS 的 touch-action: none（见 .board 样式），
+   * 等于告诉浏览器“这块区域的手势全部交给页面脚本”，上下左右都能稳定收到。
+   * 不支持 Pointer Events 的老浏览器仍然退回 touch + mouse 双通道。
+   * ------------------------------------------------------------------------ */
+  var SWIPE_MIN = 16;       // 最小滑动距离（px）：比 24 更灵敏，轻扫也能识别
+  var gesture = null;
 
-  // 鼠标拖动也能玩
-  var mouseDown = null;
-  boardEl.addEventListener('mousedown', function (e) { mouseDown = { x: e.clientX, y: e.clientY }; });
-  window.addEventListener('mouseup', function (e) {
-    if (!mouseDown) return;
-    var dx = e.clientX - mouseDown.x, dy = e.clientY - mouseDown.y;
-    mouseDown = null;
-    if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return;
-    if (state.aiOn) stopAI();
+  function gestureStart(x, y) {
+    gesture = { x: x, y: y, dx: 0, dy: 0, moved: false };
+  }
+
+  function gestureProgress(x, y) {
+    if (!gesture) return;
+    gesture.dx = x - gesture.x;
+    gesture.dy = y - gesture.y;
+    if (Math.abs(gesture.dx) > 8 || Math.abs(gesture.dy) > 8) gesture.moved = true;
+  }
+
+  function gestureAct(x, y) {
+    if (!gesture) return;
+    var dx = x - gesture.x;
+    var dy = y - gesture.y;
+    var moved = gesture.moved || Math.abs(dx) > 8 || Math.abs(dy) > 8;
+    gesture = null;
+    if (!moved || (Math.abs(dx) < SWIPE_MIN && Math.abs(dy) < SWIPE_MIN)) return;
+    if (state.aiOn) stopAI();      // 人工操作随时接管
     if (Math.abs(dx) > Math.abs(dy)) applyMove(dx > 0 ? 'right' : 'left', {});
     else applyMove(dy > 0 ? 'down' : 'up', {});
-  });
+  }
+
+  function gestureCancel() { gesture = null; }
+
+  if (window.PointerEvent) {
+    // 主流浏览器（含手机 Chrome / Edge / Safari 13+）
+    boardEl.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      gestureStart(e.clientX, e.clientY);
+      if (boardEl.setPointerCapture) {
+        try { boardEl.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+    });
+    boardEl.addEventListener('pointermove', function (e) {
+      gestureProgress(e.clientX, e.clientY);
+    });
+    boardEl.addEventListener('pointerup', function (e) {
+      gestureAct(e.clientX, e.clientY);
+    });
+    boardEl.addEventListener('pointercancel', gestureCancel);
+  } else {
+    // 兜底：老浏览器的 touch 通道
+    boardEl.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) { gestureCancel(); return; }
+      gestureStart(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    boardEl.addEventListener('touchmove', function (e) {
+      if (e.touches.length !== 1) return;
+      gestureProgress(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    boardEl.addEventListener('touchend', function (e) {
+      var t = e.changedTouches && e.changedTouches[0];
+      if (!t) { gestureCancel(); return; }
+      gestureAct(t.clientX, t.clientY);
+    }, { passive: true });
+    boardEl.addEventListener('touchcancel', gestureCancel);
+
+    // 鼠标拖动（仅在没有 Pointer Events 时挂，避免同一次操作被处理两遍）
+    var mouseDown = null;
+    boardEl.addEventListener('mousedown', function (e) {
+      mouseDown = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener('mouseup', function (e) {
+      if (!mouseDown) return;
+      var x = mouseDown.x, y = mouseDown.y;
+      mouseDown = null;
+      gestureStart(x, y);
+      gestureProgress(e.clientX, e.clientY);
+      gestureAct(e.clientX, e.clientY);
+    });
+  }
+
+  // 「更多」：默认只显示游戏本身，点开才显示战绩/说明等附加内容
+  var btnExtra = document.getElementById('btn-extra');
+  function applyExtra(on) {
+    document.body.classList.toggle('show-extra', !!on);
+    btnExtra.textContent = on ? '收起 ▴' : '更多 ▾';
+    try { localStorage.setItem(LS_EXTRA, on ? '1' : '0'); } catch (e) {}
+    relayout();   // 布局变了，重新量一次棋盘
+  }
+  btnExtra.onclick = function () {
+    applyExtra(!document.body.classList.contains('show-extra'));
+  };
 
   document.getElementById('btn-new').onclick = newGame;
   document.getElementById('btn-undo').onclick = undo;
@@ -863,6 +979,7 @@ kbd {
   document.getElementById('silent').checked = state.silent;
 
   buildBgCells();
+  applyExtra(loadNum(LS_EXTRA, 0) === 1);
   applyTheme(loadJSON(LS_THEME, null) || 'light');
   renderHistory();
   newGame();
